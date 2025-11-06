@@ -1,0 +1,17 @@
+# Ignorar dependências e builds
+node_modules
+dist
+build
+.next
+out
+
+# Ignorar configurações locais
+.env.local
+.env
+.env.development.local
+.env.production.local
+.env.test.local
+
+# Ignorar testes e arquivos temporários
+test
+cursor
