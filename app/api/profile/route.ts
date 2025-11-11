@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/auth";
 import connectDB from "@/lib/db";
 import Profile from "@/models/Profile";
 import User from "@/models/User";
@@ -8,7 +7,7 @@ import { generateUniqueSlugForProfile } from "@/lib/slug";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json(
@@ -94,6 +93,17 @@ export async function GET(request: NextRequest) {
         ...profile.toObject(),
         slug: profileSlug,
         connections: profile.connections?.length || 0,
+        // Garantir que todos os campos estejam presentes
+        headline: profile.headline || "",
+        location: profile.location || "",
+        bannerUrl: profile.bannerUrl || null,
+        photoUrl: profile.photoUrl || null,
+        education: profile.education || [],
+        currentCompany: profile.currentCompany || "",
+        currentTitle: profile.currentTitle || "",
+        bio: profile.bio || "",
+        skills: profile.skills || [],
+        experience: profile.experience || [],
       },
     });
   } catch (error) {
@@ -107,7 +117,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json(
@@ -120,15 +130,94 @@ export async function PUT(request: NextRequest) {
 
     await connectDB();
 
-    const profile = await Profile.findOneAndUpdate(
-      { userId: session.user.id },
-      updates,
-      { new: true, upsert: true }
-    );
+    // Validar campos obrigatórios
+    if (updates.firstName && updates.firstName.trim().length === 0) {
+      return NextResponse.json(
+        { error: "Nome não pode estar vazio" },
+        { status: 400 }
+      );
+    }
+
+    if (updates.lastName && updates.lastName.trim().length === 0) {
+      return NextResponse.json(
+        { error: "Sobrenome não pode estar vazio" },
+        { status: 400 }
+      );
+    }
+
+    // Buscar perfil existente
+    let profile = await Profile.findOne({ userId: session.user.id });
+
+    // Se não existe, criar um novo
+    if (!profile) {
+      const user = await User.findById(session.user.id);
+      if (!user) {
+        return NextResponse.json(
+          { error: "Usuário não encontrado" },
+          { status: 404 }
+        );
+      }
+
+      const firstName = updates.firstName || user.name.split(" ")[0] || "Usuario";
+      const lastName = updates.lastName || user.name.split(" ").slice(1).join(" ") || "Anonimo";
+
+      const slug = await generateUniqueSlugForProfile(
+        firstName,
+        lastName,
+        Profile
+      );
+
+      profile = new Profile({
+        userId: session.user.id,
+        firstName,
+        lastName,
+        slug,
+        ...updates,
+      });
+
+      await profile.save();
+
+      // Atualizar referência no usuário
+      await User.findByIdAndUpdate(session.user.id, { profile: profile._id });
+    } else {
+      // Atualizar perfil existente
+      // Se o nome mudou, atualizar também no User
+      if (updates.firstName || updates.lastName) {
+        const firstName = updates.firstName || profile.firstName;
+        const lastName = updates.lastName || profile.lastName;
+        const fullName = `${firstName} ${lastName}`.trim();
+
+        await User.findByIdAndUpdate(session.user.id, {
+          name: fullName,
+        });
+
+        // Se o nome mudou significativamente, pode ser necessário atualizar o slug
+        if (
+          (updates.firstName && updates.firstName !== profile.firstName) ||
+          (updates.lastName && updates.lastName !== profile.lastName)
+        ) {
+          const newSlug = await generateUniqueSlugForProfile(
+            firstName,
+            lastName,
+            Profile
+          );
+          updates.slug = newSlug;
+        }
+      }
+
+      // Atualizar campos
+      Object.keys(updates).forEach((key) => {
+        if (updates[key] !== undefined) {
+          (profile as any)[key] = updates[key];
+        }
+      });
+
+      await profile.save();
+    }
 
     return NextResponse.json({
       message: "Perfil atualizado com sucesso",
-      profile,
+      profile: profile.toObject(),
     });
   } catch (error) {
     console.error("Profile update error:", error);

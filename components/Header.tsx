@@ -18,16 +18,13 @@ import {
   Globe,
   LogOut,
   ChevronDown,
-  Search,
+  LayoutDashboard,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroupInput } from "./ButtonGroupInput";
-
-import HomeIcon from "@/public/images/icons/home-icon.svg";
-import MyRedeIcon from "@/public/images/icons/my-rede.svg";
-import VagasIcon from "@/public/images/icons/vagas.svg";
-import MensagemIcon from "@/public/images/icons/mensagem.svg";
-import NotificacaoIcon from "@/public/images/icons/notification.svg";
+import LinkedInIcon from "./LinkedInIcon";
+import { cn } from "@/lib/utils";
 
 interface Profile {
   firstName: string;
@@ -36,7 +33,11 @@ interface Profile {
   photoUrl?: string;
 }
 
-export default function Header() {
+interface HeaderProps {
+  sticky?: boolean;
+}
+
+export default function Header({ sticky = true }: HeaderProps) {
   const { data: session } = useSession();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -47,15 +48,20 @@ export default function Header() {
   };
 
   const navItems = [
-    { href: "/feed", icon: HomeIcon, label: "Início" },
-    { href: "/network", icon: MyRedeIcon, label: "Minha rede" },
-    { href: "/jobs", icon: VagasIcon, label: "Vagas" },
-    { href: "/messages", icon: MensagemIcon, label: "Mensagens" },
-    { href: "/notifications", icon: NotificacaoIcon, label: "Notificações" },
+    { href: "/feed", iconId: "newspaper-small", label: "Início" },
+    { href: "/network", iconId: "group-small", label: "Minha rede" },
+    { href: "/jobs", iconId: "connect-small", label: "Vagas" },
+    { href: "/messages", iconId: "send-privately-small", label: "Mensagens" },
+    { href: "/notifications", iconId: "signal-notice-small", label: "Notificações" },
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
+    <header
+      className={cn(
+        "bg-white border-b border-gray-200",
+        sticky && "sticky top-0 z-50"
+      )}
+    >
       {/* DESKTOP HEADER */}
       <div className="hidden md:flex max-w-7xl mx-auto px-4 items-center justify-between h-14">
         {/* LEFT: Logo + Search */}
@@ -79,10 +85,10 @@ export default function Header() {
               className="relative flex flex-col items-center text-xs font-medium hover:text-black transition group"
             >
               <div className="relative">
-                <img
-                  src={item.icon.src}
-                  alt={item.label}
-                  className="w-5 h-5 opacity-80 group-hover:opacity-100 transition"
+                <LinkedInIcon
+                  id={item.iconId}
+                  size={20}
+                  className="opacity-80 group-hover:opacity-100 transition"
                 />
                 {item.label === "Notificações" && unreadNotifications > 0 && (
                   <span className="absolute -top-1 -right-2 bg-red-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
@@ -126,7 +132,7 @@ export default function Header() {
               <button className="flex flex-col items-center text-xs font-medium hover:text-black">
                 <Avatar className="w-7 h-7 border border-gray-200 rounded-full">
                   <AvatarImage
-                    src={profile?.photoUrl || "/placeholder-avatar.svg"}
+                    src={profile?.photoUrl || "/placeholder/userplaceholder.svg"}
                   />
                   <AvatarFallback>
                     {profile?.firstName?.[0]}
@@ -142,6 +148,21 @@ export default function Header() {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem>Ver perfil</DropdownMenuItem>
               <DropdownMenuSeparator />
+              {session?.user?.role === "admin" && (
+                <>
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard" className="flex items-center">
+                      <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="flex items-center">
+                      <Shield className="mr-2 h-4 w-4" /> Admin
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem>
                 <Settings className="mr-2 h-4 w-4" /> Configurações
               </DropdownMenuItem>
@@ -180,10 +201,10 @@ export default function Header() {
         <nav className="flex items-center justify-center gap-6 text-gray-600">
           {navItems.map((item) => (
             <Link key={item.href} href={item.href} className="relative">
-              <img
-                src={item.icon.src}
-                alt={item.label}
-                className="w-5 h-5 opacity-80"
+              <LinkedInIcon
+                id={item.iconId}
+                size={20}
+                className="opacity-80"
               />
               {item.label === "Notificações" && unreadNotifications > 0 && (
                 <span className="absolute -top-1 -right-2 bg-red-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
@@ -200,7 +221,7 @@ export default function Header() {
             <button className="cursor-pointer">
               <Avatar className="w-6 h-6 border border-gray-200 rounded-full">
                 <AvatarImage
-                  src={profile?.photoUrl || "/placeholder-avatar.svg"}
+                  src={profile?.photoUrl || "/placeholder/userplaceholder.svg"}
                 />
                 <AvatarFallback>
                   {profile?.firstName?.[0]}
@@ -212,6 +233,21 @@ export default function Header() {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem>Ver perfil</DropdownMenuItem>
             <DropdownMenuSeparator />
+            {session?.user?.role === "admin" && (
+              <>
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard" className="flex items-center">
+                    <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/admin" className="flex items-center">
+                    <Shield className="mr-2 h-4 w-4" /> Admin
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem>
               <Settings className="mr-2 h-4 w-4" /> Configurações
             </DropdownMenuItem>

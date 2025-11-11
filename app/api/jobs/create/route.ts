@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/auth";
 import connectDB from "@/lib/db";
-import Job from "@/models/Job";
 import Company from "@/models/Company";
+import Vacancy, { vacancyLevelSalaryBands } from "@/models/Vacancy";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json(
@@ -25,17 +24,27 @@ export async function POST(request: NextRequest) {
       workLocationType,
       location,
       jobType,
+      level = "mid",
       description,
       salaryMin,
       salaryMax,
       requirements,
       benefits,
+      skills,
+      tags,
     } = body;
 
     // Validar campos obrigatórios
     if (!title || !companyId || !workLocationType || !location || !jobType) {
       return NextResponse.json(
         { error: "Campos obrigatórios: título, empresa, tipo de localização, localização e tipo de vaga" },
+        { status: 400 }
+      );
+    }
+
+    if (!vacancyLevelSalaryBands[level]) {
+      return NextResponse.json(
+        { error: "Nível informado é inválido" },
         { status: 400 }
       );
     }
@@ -65,36 +74,59 @@ export async function POST(request: NextRequest) {
     }
 
     // Determinar se é remoto baseado no workLocationType
-    const remote = workLocationType === "remoto";
+    const remote = workLocationType !== "presencial";
+
+    let salaryRange;
+    if (typeof salaryMin === "number" || typeof salaryMax === "number") {
+      const band = vacancyLevelSalaryBands[level];
+      const min = typeof salaryMin === "number" ? salaryMin : band.min;
+      const max = typeof salaryMax === "number" ? salaryMax : band.max;
+
+      if (min > max) {
+        return NextResponse.json(
+          { error: "Salário mínimo não pode ser maior que o máximo" },
+          { status: 400 }
+        );
+      }
+
+      if (min < band.min || max > band.max) {
+        return NextResponse.json(
+          {
+            error: `Faixa salarial deve estar entre R$${band.min} e R$${band.max} para o nível ${level}`,
+          },
+          { status: 400 }
+        );
+      }
+
+      salaryRange = {
+        min,
+        max,
+        currency: "BRL",
+      } as const;
+    }
 
     // Criar a vaga
-    const job = new Job({
+    const job = await Vacancy.create({
       companyId,
+      postedBy: session.user.id,
       title,
       description: description || "",
       requirements: requirements || [],
       responsibilities: [],
-      salaryRange:
-        salaryMin || salaryMax
-          ? {
-              min: salaryMin ? parseFloat(salaryMin) : 0,
-              max: salaryMax ? parseFloat(salaryMax) : 0,
-              currency: "BRL",
-            }
-          : undefined,
+      benefits: benefits || [],
+      skills: skills || [],
+      tags: tags || [],
+      salaryRange,
       location,
       remote,
       type: jobType,
-      level: "mid", // Default, pode ser ajustado depois
+      level,
       category: company.industry || "Tecnologia",
-      skills: [],
-      benefits: benefits || [],
-      status: "active",
+      status: "published",
+      publishedAt: new Date(),
       applicationsCount: 0,
       viewsCount: 0,
     });
-
-    await job.save();
 
     // Incrementar contador de vagas da empresa
     await Company.findByIdAndUpdate(companyId, {
@@ -102,7 +134,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Popular dados da empresa para retornar
-    const createdJob = await Job.findById(job._id).populate(
+    const createdJob = await Vacancy.findById(job._id).populate(
       "companyId",
       "name logoUrl"
     );

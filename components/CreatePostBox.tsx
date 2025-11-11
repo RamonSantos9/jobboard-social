@@ -3,10 +3,11 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Video, Image as ImageIcon, FileText } from "lucide-react";
 import CreatePostModal from "./CreatePostModal";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
+import LinkedInIcon from "@/components/LinkedInIcon";
+import { useState, useEffect } from "react";
 
 export default function CreatePostBox({
   onPostCreated,
@@ -14,6 +15,17 @@ export default function CreatePostBox({
   onPostCreated?: () => void;
 }) {
   const { data: session } = useSession();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalAction, setModalAction] = useState<"image" | "video" | null>(
+    null
+  );
+
+  // Resetar modalAction quando o modal fechar
+  useEffect(() => {
+    if (!isModalOpen) {
+      setModalAction(null);
+    }
+  }, [isModalOpen]);
 
   return (
     <motion.div
@@ -21,46 +33,73 @@ export default function CreatePostBox({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="bg-white shadow-sm border rounded-lg p-4">
+      <Card className="border rounded-lg p-4">
         {/* Linha superior - avatar + botão */}
         <div className="flex items-center gap-3">
-          <Avatar className="w-11 h-11">
-            <AvatarImage
-              src={session?.user?.image || "/placeholder-avatar.svg"}
-            />
+          <Avatar className="w-12 h-12">
+            <AvatarImage src="/placeholder/userplaceholder.svg" />
             <AvatarFallback>{session?.user?.name?.[0] || "U"}</AvatarFallback>
           </Avatar>
 
-          <CreatePostModal onPostCreated={onPostCreated}>
-            <Button className="flex-1 justify-start border hover:bg-gray-100 rounded-full px-4 py-2 text-xs ">
+          <CreatePostModal
+            onPostCreated={onPostCreated}
+            open={isModalOpen}
+            onOpenChange={setIsModalOpen}
+            initialAction={modalAction}
+          >
+            <Button className="flex-1 justify-start border border-black/40 rounded-full px-4 py-6 text-xs bg-white text-black hover:bg-white">
               Comece uma publicação
             </Button>
           </CreatePostModal>
         </div>
 
         {/* Linha inferior - ações */}
-        <div className="flex items-center justify-around mt-3">
+        <div className="flex items-center justify-around">
           <Button
             variant="ghost"
-            className="flex items-center gap-2 text-gray-600 hover:text-green-600 hover:bg-green-50"
+            className="flex items-center gap-2 text-black hover:text-green-600 hover:bg-green-100"
+            onClick={() => {
+              setModalAction("video");
+              setIsModalOpen(true);
+            }}
           >
-            <Video className="w-5 h-5 text-green-600" />
+            <LinkedInIcon
+              id="video-medium"
+              size={24}
+              className="text-green-600"
+            />
             <span className="text-sm font-medium">Vídeo</span>
           </Button>
 
           <Button
             variant="ghost"
-            className="flex items-center gap-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+            className="flex items-center gap-2 text-black hover:text-blue-600 hover:bg-blue-100"
+            onClick={() => {
+              setModalAction("image");
+              setIsModalOpen(true);
+            }}
           >
-            <ImageIcon className="w-5 h-5 text-blue-600" />
+            <LinkedInIcon
+              id="image-medium"
+              size={24}
+              className="text-blue-600"
+            />
             <span className="text-sm font-medium">Foto</span>
           </Button>
 
           <Button
             variant="ghost"
-            className="flex items-center gap-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50"
+            className="flex items-center gap-2 text-black hover:text-orange-600 hover:bg-orange-100"
+            onClick={() => {
+              setModalAction(null);
+              setIsModalOpen(true);
+            }}
           >
-            <FileText className="w-5 h-5 text-orange-600" />
+            <LinkedInIcon
+              id="compose-medium"
+              size={24}
+              className="text-orange-600"
+            />
             <span className="text-sm font-medium">Escrever artigo</span>
           </Button>
         </div>

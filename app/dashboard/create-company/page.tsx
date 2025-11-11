@@ -15,8 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { ToastContainer } from "@/components/ui/toast";
+import { toast } from "sonner";
 import AuthGuard from "@/components/AuthGuard";
 
 export default function CreateCompanyPage() {
@@ -32,11 +31,10 @@ export default function CreateCompanyPage() {
 
   const router = useRouter();
   const { data: session } = useSession();
-  const { toasts, toast, removeToast } = useToast();
 
   // Redirecionar se não estiver logado
   if (!session) {
-    router.push("/auth/login");
+    router.push("/feed/auth/login");
     return null;
   }
 
@@ -269,7 +267,6 @@ export default function CreateCompanyPage() {
           </div>
         </div>
 
-        <ToastContainer toasts={toasts} onRemove={removeToast} />
       </div>
     </AuthGuard>
   );

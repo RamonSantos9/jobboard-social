@@ -12,122 +12,430 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Image,
-  Video,
-  FileText,
-  Smile,
-  Calendar,
-  MapPin,
-  Users,
-  X,
-} from "lucide-react";
+import { X, Pencil } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useToast } from "./ToastProvider";
+import { toast } from "sonner";
+import { useEffect, useRef } from "react";
+import LinkedInIcon from "@/components/LinkedInIcon";
+import ImageEditorModal from "@/components/ImageEditorModal";
 
 interface CreatePostModalProps {
   onPostCreated?: (post?: any) => void;
+  children?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  initialAction?: "image" | "video" | null;
 }
 
 export default function CreatePostModal({
   onPostCreated,
+  children,
+  open,
+  onOpenChange,
+  initialAction,
 }: CreatePostModalProps) {
   const { data: session } = useSession();
-  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState("");
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
+  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [posting, setPosting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const actionTriggeredRef = useRef(false);
+  const [showEditor, setShowEditor] = useState(false);
+  const [step, setStep] = useState<"upload" | "editor" | "text">("text");
 
-  const handleSubmit = async () => {
-    if (!content.trim() && !mediaUrl) {
-      toast({
-        type: "error",
-        title: "Digite algo ou adicione uma mídia",
-      });
-      return;
+  // Usar estado externo se fornecido, caso contrário usar interno
+  const modalOpen = open !== undefined ? open : isOpen;
+  const setModalOpen = onOpenChange || setIsOpen;
+
+  // Resetar estado quando o modal fechar
+  useEffect(() => {
+    if (!modalOpen) {
+      actionTriggeredRef.current = false;
+      setStep("text");
+      setShowEditor(false);
+      setContent("");
+      setMediaUrl(null);
+      setMediaType(null);
+      setMediaUrls([]);
     }
+  }, [modalOpen]);
 
-    setPosting(true);
-    try {
-      const response = await fetch("/api/posts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          content,
-          mediaUrl,
-          mediaType,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast({
-          type: "success",
-          title: "Publicação criada com sucesso!",
-        });
-        setContent("");
-        setMediaUrl(null);
-        setMediaType(null);
-        setIsOpen(false);
-        onPostCreated?.(data.post); // Passar o post criado
-      } else {
-        toast({
-          type: "error",
-          title: data.error || "Erro ao criar publicação",
-        });
-      }
-    } catch (error) {
-      toast({
-        type: "error",
-        title: "Erro ao criar publicação",
-      });
-    } finally {
-      setPosting(false);
-    }
-  };
-
-  const handleFileUpload = (type: "image" | "video") => {
+  const handleFileUpload = async (type: "image" | "video") => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = type === "image" ? "image/*" : "video/*";
+    input.multiple = type === "image"; // Permitir múltiplas imagens
 
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        // Simular upload - em produção, você faria upload real
-        const url = URL.createObjectURL(file);
-        setMediaUrl(url);
-        setMediaType(type);
+    input.onchange = async (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (!files || files.length === 0) return;
+
+      setUploading(true);
+
+      try {
+        if (type === "image" && files.length > 1) {
+          // Upload múltiplas imagens
+          const uploadPromises = Array.from(files).map(async (file) => {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("type", "image");
+
+            const response = await fetch("/api/upload", {
+              method: "POST",
+              body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+              const errorMessage =
+                data.message || data.error || "Erro ao fazer upload";
+
+              // Se for erro de configuração do preset, mostrar mensagem mais detalhada
+              if (data.type === "preset_error" && data.troubleshooting) {
+                toast.error("⚠️ Upload Preset não configurado", {
+                  description:
+                    "O preset 'jobboard_social' não foi encontrado. Consulte CLOUDINARY_SETUP.md para instruções.",
+                  duration: 12000,
+                  action: {
+                    label: "Abrir Cloudinary",
+                    onClick: () => {
+                      window.open(
+                        "https://cloudinary.com/console/settings/upload",
+                        "_blank"
+                      );
+                    },
+                  },
+                });
+                console.error(
+                  "═══════════════════════════════════════════════════════════"
+                );
+                console.error(
+                  "🔴 ERRO: Upload Preset 'jobboard_social' não encontrado"
+                );
+                console.error(
+                  "═══════════════════════════════════════════════════════════"
+                );
+                console.error("");
+                console.error("📋 INSTRUÇÕES RÁPIDAS:");
+                console.error("");
+                console.error(
+                  "1. Acesse: https://cloudinary.com/console/settings/upload"
+                );
+                console.error("2. Clique em 'Add upload preset'");
+                console.error(
+                  "3. Nome do preset: jobboard_social (exatamente assim)"
+                );
+                console.error("4. Signing mode: Unsigned (MUITO IMPORTANTE!)");
+                console.error("5. Clique em 'Save'");
+                console.error(
+                  "6. Reinicie o servidor Next.js (Ctrl+C e depois npm run dev)"
+                );
+                console.error("");
+                console.error(
+                  "📖 Para instruções detalhadas, consulte o arquivo CLOUDINARY_SETUP.md"
+                );
+                console.error("");
+                console.error(
+                  "═══════════════════════════════════════════════════════════"
+                );
+                console.error("Erro completo:", data);
+              } else if (data.type === "configuration_error") {
+                toast.error("Cloudinary não configurado", {
+                  description: data.message,
+                  duration: 8000,
+                });
+              } else {
+                toast.error(errorMessage, {
+                  description: data.details
+                    ? "Veja o console para mais detalhes"
+                    : undefined,
+                  duration: 6000,
+                });
+              }
+
+              throw new Error(errorMessage);
+            }
+
+            return data.url;
+          });
+
+          const urls = await Promise.all(uploadPromises);
+          const newMediaUrls = [...mediaUrls, ...urls];
+          setMediaUrls(newMediaUrls);
+          setMediaType("image");
+          // Abrir editor após upload de imagens
+          setStep("editor");
+          setShowEditor(true);
+        } else {
+          // Upload único (imagem ou vídeo)
+          const file = files[0];
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("type", type);
+
+          const response = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            // Se a API retornou uma mensagem de erro específica, usar ela
+            const errorMessage =
+              data.message || data.error || "Erro ao fazer upload";
+
+            // Se for erro de configuração do preset, mostrar mensagem mais detalhada
+            if (data.type === "preset_error" && data.troubleshooting) {
+              toast.error("⚠️ Upload Preset não configurado", {
+                description:
+                  "O preset 'jobboard_social' não foi encontrado. Consulte CLOUDINARY_SETUP.md para instruções.",
+                duration: 12000,
+                action: {
+                  label: "Abrir Cloudinary",
+                  onClick: () => {
+                    window.open(
+                      "https://cloudinary.com/console/settings/upload",
+                      "_blank"
+                    );
+                  },
+                },
+              });
+              console.error(
+                "═══════════════════════════════════════════════════════════"
+              );
+              console.error(
+                "🔴 ERRO: Upload Preset 'jobboard_social' não encontrado"
+              );
+              console.error(
+                "═══════════════════════════════════════════════════════════"
+              );
+              console.error("");
+              console.error("📋 INSTRUÇÕES RÁPIDAS:");
+              console.error("");
+              console.error(
+                "1. Acesse: https://cloudinary.com/console/settings/upload"
+              );
+              console.error("2. Clique em 'Add upload preset'");
+              console.error(
+                "3. Nome do preset: jobboard_social (exatamente assim)"
+              );
+              console.error("4. Signing mode: Unsigned (MUITO IMPORTANTE!)");
+              console.error("5. Clique em 'Save'");
+              console.error(
+                "6. Reinicie o servidor Next.js (Ctrl+C e depois npm run dev)"
+              );
+              console.error("");
+              console.error(
+                "📖 Para instruções detalhadas, consulte o arquivo CLOUDINARY_SETUP.md"
+              );
+              console.error("");
+              console.error(
+                "═══════════════════════════════════════════════════════════"
+              );
+              console.error("Erro completo:", data);
+            } else if (data.type === "configuration_error") {
+              toast.error("Cloudinary não configurado", {
+                description: data.message,
+                duration: 8000,
+              });
+            } else {
+              toast.error(errorMessage, {
+                description: data.details
+                  ? "Veja o console para mais detalhes"
+                  : undefined,
+                duration: 6000,
+              });
+            }
+
+            throw new Error(errorMessage);
+          }
+
+          // Upload bem-sucedido
+          if (type === "image") {
+            const newMediaUrls = [...mediaUrls, data.url];
+            setMediaUrls(newMediaUrls);
+            setMediaType("image");
+            // Abrir editor após upload de imagem
+            setStep("editor");
+            setShowEditor(true);
+          } else {
+            setMediaUrl(data.url);
+            setMediaType("video");
+            // Vídeo não precisa de editor, permanecer no passo de texto
+          }
+        }
+      } catch (error) {
+        console.error("Upload error:", error);
+
+        // Verificar se já foi exibido um toast específico
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Erro ao fazer upload do arquivo";
+
+        // Se for erro de preset ou configuração, o toast já foi exibido acima
+        if (
+          !errorMessage.includes("CONFIGURAÇÃO") &&
+          !errorMessage.includes("preset") &&
+          !errorMessage.includes("Cloudinary não configurado")
+        ) {
+          // Para outros erros, mostrar toast genérico
+          toast.error(errorMessage, {
+            description: "Verifique o console para mais detalhes",
+            duration: 6000,
+          });
+        }
+      } finally {
+        setUploading(false);
       }
     };
 
     input.click();
   };
 
-  const removeMedia = () => {
-    if (mediaUrl) {
-      URL.revokeObjectURL(mediaUrl);
+  // Acionar upload quando o modal abrir com initialAction
+  useEffect(() => {
+    if (modalOpen && initialAction && !actionTriggeredRef.current) {
+      actionTriggeredRef.current = true;
+      // Pequeno delay para garantir que o modal esteja totalmente renderizado
+      const timer = setTimeout(() => {
+        handleFileUpload(initialAction);
+      }, 300);
+      return () => clearTimeout(timer);
     }
-    setMediaUrl(null);
-    setMediaType(null);
+  }, [modalOpen, initialAction]);
+
+  const handleSubmit = async () => {
+    if (!content.trim() && !mediaUrl && mediaUrls.length === 0) {
+      toast.error("Digite algo ou adicione uma mídia");
+      return;
+    }
+
+    setPosting(true);
+    try {
+      // Normalizar dados de mídia antes de enviar
+      let finalMediaUrl: string | null = null;
+      let finalMediaType: "image" | "video" | null = null;
+      let finalMediaUrls: string[] | undefined = undefined;
+
+      // Se há vídeo, usar mediaUrl
+      if (mediaUrl && mediaType === "video") {
+        finalMediaUrl = mediaUrl;
+        finalMediaType = "video";
+      }
+      // Se há imagens
+      else if (mediaUrls.length > 0) {
+        if (mediaUrls.length === 1) {
+          // Uma única imagem: salvar em mediaUrl para compatibilidade
+          finalMediaUrl = mediaUrls[0];
+          finalMediaType = "image";
+        } else {
+          // Múltiplas imagens: salvar todas em mediaUrls e a primeira em mediaUrl
+          finalMediaUrl = mediaUrls[0];
+          finalMediaType = "image";
+          finalMediaUrls = mediaUrls;
+        }
+      }
+
+      console.log("Enviando post com dados:", {
+        content,
+        mediaUrl: finalMediaUrl,
+        mediaType: finalMediaType,
+        mediaUrls: finalMediaUrls,
+      });
+
+      const response = await fetch("/api/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: content.trim() || undefined,
+          mediaUrl: finalMediaUrl || undefined,
+          mediaType: finalMediaType || undefined,
+          mediaUrls: finalMediaUrls,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success("Publicação criada com sucesso!");
+        setContent("");
+        setMediaUrl(null);
+        setMediaType(null);
+        setMediaUrls([]);
+        setModalOpen(false);
+        onPostCreated?.(data.post);
+      } else {
+        console.error("Erro ao criar post:", data);
+        toast.error(data.error || data.details || "Erro ao criar publicação");
+      }
+    } catch (error) {
+      console.error("Erro ao criar publicação:", error);
+      toast.error("Erro ao criar publicação");
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const removeMedia = (index?: number) => {
+    if (index !== undefined) {
+      // Remover imagem específica
+      const newMediaUrls = mediaUrls.filter((_, i) => i !== index);
+      setMediaUrls(newMediaUrls);
+      if (newMediaUrls.length === 0) {
+        setMediaType(null);
+        setMediaUrl(null);
+      }
+    } else {
+      // Remover vídeo ou última mídia
+      if (mediaUrl) {
+        setMediaUrl(null);
+      }
+      if (mediaUrls.length > 0) {
+        setMediaUrls([]);
+      }
+      setMediaType(null);
+    }
+  };
+
+  const handleEditorNext = () => {
+    setShowEditor(false);
+    setStep("text");
+  };
+
+  const handleEditorBack = () => {
+    setShowEditor(false);
+    setStep("text");
+  };
+
+  const handleEditImage = (index: number) => {
+    // Voltar para o editor com a imagem selecionada
+    setShowEditor(true);
+    setStep("editor");
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button className="w-full justify-start text-black/60 bg-white hover:bg-gray-50 border rounded-full px-4 py-6 ">
-          <span className="text-left">Comece uma publicação</span>
-        </Button>
-      </DialogTrigger>
+    <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      {!open && (
+        <DialogTrigger asChild>
+          {children || (
+            <Button className="w-full justify-start text-black/60 bg-white border rounded-full px-4 py-6 hover:bg-white">
+              <span className="text-left">Comece uma publicação</span>
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Criar uma publicação</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-black/60 text-sm">
             Compartilhe suas ideias, experiências e conhecimentos com sua rede.
           </DialogDescription>
         </DialogHeader>
@@ -136,14 +444,14 @@ export default function CreatePostModal({
           {/* User Info */}
           <div className="flex items-center space-x-3">
             <Avatar className="w-10 h-10">
-              <AvatarImage src="/placeholder-avatar.svg" />
+              <AvatarImage src="/placeholder/userplaceholder.svg" />
               <AvatarFallback>{session?.user?.name?.[0] || "U"}</AvatarFallback>
             </Avatar>
             <div>
               <p className="font-medium text-sm">
                 {session?.user?.name || "Usuário"}
               </p>
-              <p className="text-xs text-gray-500">Público</p>
+              <p className="text-xs text-black/60">Público</p>
             </div>
           </div>
 
@@ -152,30 +460,84 @@ export default function CreatePostModal({
             placeholder="O que você gostaria de compartilhar?"
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="min-h-[120px] border-0 text-lg resize-none focus:ring-0 ring-0 border-gray-200 rounded-lg"
+            className="min-h-[120px] border-0 text-sm resize-none focus:ring-0 ring-0 border-black/40 rounded-lg"
           />
 
           {/* Media Preview */}
-          {mediaUrl && (
+          {uploading && (
+            <div className="p-4 text-center text-sm text-black">
+              Fazendo upload...
+            </div>
+          )}
+
+          {mediaUrls.length > 0 && step === "text" && (
+            <div className="grid grid-cols-2 gap-2">
+              {mediaUrls.map((url, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={url}
+                    alt={`Preview ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-lg border-2 border-black/40"
+                  />
+                  {/* Overlay com botões de ação - aparece ao passar o mouse */}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="w-8 h-8 p-0 bg-white/90 hover:bg-white"
+                      onClick={() => handleEditImage(index)}
+                      aria-label="Editar imagem"
+                    >
+                      <Pencil className="w-4 h-4 text-black" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="w-8 h-8 p-0 bg-red-500/90 hover:bg-red-600"
+                      onClick={() => removeMedia(index)}
+                      aria-label="Remover imagem"
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </Button>
+                  </div>
+                  {/* Botões sempre visíveis no canto superior direito */}
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="w-7 h-7 p-0 bg-white/80 hover:bg-white border border-gray-300"
+                      onClick={() => handleEditImage(index)}
+                      aria-label="Editar imagem"
+                    >
+                      <Pencil className="w-3 h-3 text-black" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="w-7 h-7 p-0 bg-red-500/80 hover:bg-red-600"
+                      onClick={() => removeMedia(index)}
+                      aria-label="Remover imagem"
+                    >
+                      <X className="w-3 h-3 text-white" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {mediaUrl && mediaType === "video" && (
             <div className="relative">
-              {mediaType === "image" ? (
-                <img
-                  src={mediaUrl}
-                  alt="Preview"
-                  className="w-full max-h-64 object-cover rounded-lg border-2 border-gray-200"
-                />
-              ) : (
-                <video
-                  src={mediaUrl}
-                  controls
-                  className="w-full max-h-64 rounded-lg"
-                />
-              )}
+              <video
+                src={mediaUrl}
+                controls
+                className="w-full max-h-64 rounded-lg"
+              />
               <Button
                 variant="destructive"
                 size="sm"
                 className="absolute top-2 right-2"
-                onClick={removeMedia}
+                onClick={() => removeMedia()}
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -189,18 +551,18 @@ export default function CreatePostModal({
                 variant="ghost"
                 size="sm"
                 onClick={() => handleFileUpload("image")}
-                className="text-gray-600 hover:text-blue-600"
+                className="text-black hover:text-blue-600"
               >
-                <Image className="w-5 h-5 mr-2" />
+                <LinkedInIcon id="image-medium" size={20} className="mr-2" />
                 Imagem
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleFileUpload("video")}
-                className="text-gray-600 hover:text-blue-600"
+                className="text-black hover:text-green-600"
               >
-                <Video className="w-5 h-5 mr-2" />
+                <LinkedInIcon id="video-medium" size={20} className="mr-2" />
                 Vídeo
               </Button>
             </div>
@@ -208,22 +570,49 @@ export default function CreatePostModal({
             <div className="flex items-center space-x-2">
               <Button
                 variant="outline"
-                onClick={() => setIsOpen(false)}
+                onClick={() => setModalOpen(false)}
                 disabled={posting}
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={posting || (!content.trim() && !mediaUrl)}
+                disabled={
+                  posting ||
+                  uploading ||
+                  (!content.trim() && !mediaUrl && mediaUrls.length === 0)
+                }
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                {posting ? "Publicando..." : "Publicar"}
+                {posting
+                  ? "Publicando..."
+                  : uploading
+                  ? "Fazendo upload..."
+                  : "Publicar"}
               </Button>
             </div>
           </div>
         </div>
       </DialogContent>
+
+      {/* Image Editor Modal */}
+      <ImageEditorModal
+        isOpen={showEditor && step === "editor"}
+        onClose={() => {
+          setShowEditor(false);
+          setStep("text");
+        }}
+        images={mediaUrls}
+        onImagesChange={(newImages) => {
+          setMediaUrls(newImages);
+          if (newImages.length === 0) {
+            setMediaType(null);
+            setMediaUrl(null);
+          }
+        }}
+        onNext={handleEditorNext}
+        onBack={handleEditorBack}
+      />
     </Dialog>
   );
 }

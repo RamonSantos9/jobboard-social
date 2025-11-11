@@ -16,9 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { ToastContainer } from "@/components/ui/toast";
-import LoadingWrapper from "@/components/LoadingWrapper";
+import { toast } from "sonner";
 import AuthGuard from "@/components/AuthGuard";
 import {
   CheckCircle,
@@ -60,7 +58,6 @@ export default function CompanyInvitePage({
 
   const { data: session } = useSession();
   const router = useRouter();
-  const { toasts, toast, removeToast } = useToast();
 
   useEffect(() => {
     if (session) {
@@ -165,11 +162,7 @@ export default function CompanyInvitePage({
   };
 
   if (loading) {
-    return (
-      <LoadingWrapper duration={2000}>
-        <div></div>
-      </LoadingWrapper>
-    );
+    return <div></div>;
   }
 
   if (!company) {
@@ -320,8 +313,6 @@ export default function CompanyInvitePage({
             </Card>
           </div>
         </div>
-
-        <ToastContainer toasts={toasts} onRemove={removeToast} />
       </div>
     </AuthGuard>
   );

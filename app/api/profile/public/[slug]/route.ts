@@ -6,11 +6,11 @@ import { generateUniqueSlugForProfile } from "@/lib/slug";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
     await connectDB();
-    const { slug } = params;
+    const { slug } = await params;
 
     console.log("Searching for profile with slug:", slug);
 
@@ -71,7 +71,13 @@ export async function GET(
       console.log("Profile updated with slug:", newSlug);
     }
 
-    return NextResponse.json({ profile });
+    // Garantir que followersCount está incluído (já deve estar no profile, mas garantimos default 0)
+    const profileWithFollowers = {
+      ...profile,
+      followersCount: (profile as any).followersCount ?? 0,
+    };
+
+    return NextResponse.json({ profile: profileWithFollowers });
   } catch (error: any) {
     console.error("Public profile fetch error:", error);
     console.error("Error details:", error.message);

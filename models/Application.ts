@@ -18,7 +18,7 @@ const ApplicationSchema = new Schema<IApplication>(
   {
     jobId: {
       type: Schema.Types.ObjectId,
-      ref: "Job",
+      ref: "Vacancy",
       required: true,
     },
     candidateId: {

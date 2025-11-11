@@ -1,5 +1,5 @@
 import { IProfile } from "@/models/Profile";
-import { IJob } from "@/models/Job";
+import { IVacancy } from "@/models/Vacancy";
 
 export interface MatchScore {
   total: number;
@@ -19,7 +19,7 @@ export interface MatchScore {
  */
 export function calculateJobMatchScore(
   profile: Partial<IProfile>,
-  job: Partial<IJob>
+  job: Partial<IVacancy>
 ): MatchScore {
   const breakdown = {
     skills: 0,

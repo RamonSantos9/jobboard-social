@@ -92,7 +92,7 @@ Cada uma dessas empresas representa uma oportunidade única de investimento e pa
       readTime: 5,
       author: "Tech News Brasil",
       authorUsername: "technewsbr",
-      authorImage: "/placeholder-avatar.svg",
+      authorImage: "/placeholder/userplaceholder.svg",
       tags: ["startups", "brasil", "tecnologia", "inovação", "investimento"],
       reactions: 6602,
       comments: 45,

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/auth";
 import connectDB from "@/lib/db";
 import Company from "@/models/Company";
 
@@ -12,7 +11,7 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get("q");
     const myCompanies = searchParams.get("myCompanies") === "true";
 
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
     // Se for buscar empresas do usuário
     if (myCompanies && session) {

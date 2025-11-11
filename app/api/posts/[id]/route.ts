@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/auth";
 import connectDB from "@/lib/db";
 import Post from "@/models/Post";
 import Comment from "@/models/Comment";
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json(
@@ -21,7 +20,8 @@ export async function DELETE(
 
     await connectDB();
 
-    const post = await Post.findById(params.id);
+    const { id } = await params;
+    const post = await Post.findById(id);
     if (!post) {
       return NextResponse.json(
         { error: "Post não encontrado" },
@@ -38,10 +38,10 @@ export async function DELETE(
     }
 
     // Deletar comentários relacionados
-    await Comment.deleteMany({ postId: params.id });
+    await Comment.deleteMany({ postId: id });
 
     // Deletar o post
-    await Post.findByIdAndDelete(params.id);
+    await Post.findByIdAndDelete(id);
 
     return NextResponse.json({
       success: true,

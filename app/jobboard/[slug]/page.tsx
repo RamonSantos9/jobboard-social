@@ -32,8 +32,10 @@ import {
   BriefcaseIcon,
   X,
 } from "lucide-react";
+import LinkedInIcon from "@/components/LinkedInIcon";
 import Header from "@/components/Header";
 import EditProfileModal from "@/components/EditProfileModal";
+import FeaturedPostsCard from "@/components/FeaturedPostsCard";
 
 interface PublicProfile {
   _id: string;
@@ -73,6 +75,7 @@ interface PublicProfile {
     description?: string;
   }>;
   connections?: number;
+  followersCount?: number;
 }
 
 export default function PublicProfilePage() {
@@ -157,7 +160,14 @@ export default function PublicProfilePage() {
 
       <div className="max-w-7xl mx-auto">
         {/* Banner Azul Grande */}
-        <div className="relative bg-gradient-to-r from-blue-500 to-blue-600 h-64">
+        <div
+          className="relative h-[200px] bg-cover bg-center"
+          style={{
+            backgroundImage: profile.bannerUrl
+              ? `url(${profile.bannerUrl})`
+              : `url(/placeholder/personbanner.svg)`,
+          }}
+        >
           {/* Ícone de câmera para editar banner (apenas para próprio perfil) */}
           {isOwnProfile && (
             <button className="absolute top-4 right-4 p-2 bg-black/50 rounded-full hover:bg-black/70 transition">
@@ -170,7 +180,7 @@ export default function PublicProfilePage() {
             <div className="relative">
               <Avatar className="w-40 h-40 border-4 border-white shadow-lg">
                 <AvatarImage
-                  src={profile.photoUrl || "/placeholder-avatar.svg"}
+                  src={profile.photoUrl || "/placeholder/userplaceholder.svg"}
                 />
                 <AvatarFallback className="text-4xl">
                   {profile.firstName[0]}
@@ -216,6 +226,16 @@ export default function PublicProfilePage() {
                   )}
                 </div>
 
+                {/* Indicador de Faculdade/Empresa */}
+                {(profile.currentCompany || (profile.education && profile.education.some(edu => edu.current))) && (
+                  <div className="flex items-center gap-2 mb-4">
+                    <LinkedInIcon id="company-accent-4" size={20} className="shrink-0" />
+                    <span className="text-sm text-gray-700">
+                      {profile.currentCompany ? "Empresa" : "Faculdade"}
+                    </span>
+                  </div>
+                )}
+
                 {/* Localização e Contato */}
                 <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
                   {profile.location && (
@@ -244,9 +264,12 @@ export default function PublicProfilePage() {
                   )}
                 </div>
 
-                {/* Conexões */}
-                <div className="text-sm text-gray-600">
+                {/* Conexões e Seguidores */}
+                <div className="text-sm text-gray-600 flex items-center gap-4">
                   <span>{profile.connections || 0} conexões</span>
+                  {profile.followersCount !== undefined && (
+                    <span>{profile.followersCount || 0} seguidores</span>
+                  )}
                 </div>
               </div>
 
@@ -282,6 +305,13 @@ export default function PublicProfilePage() {
             </div>
           )}
         </div>
+
+        {/* Card de Posts Destacados */}
+        {profile.userId?._id && (
+          <div className="px-8 pt-6">
+            <FeaturedPostsCard userId={profile.userId._id} />
+          </div>
+        )}
 
         {/* Conteúdo Principal */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
@@ -550,7 +580,7 @@ export default function PublicProfilePage() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="w-10 h-10">
-                      <AvatarImage src="/placeholder-avatar.svg" />
+                      <AvatarImage src="/placeholder/userplaceholder.svg" />
                       <AvatarFallback>IF</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
@@ -584,7 +614,7 @@ export default function PublicProfilePage() {
                     <div key={i}>
                       <div className="flex items-center gap-3 mb-2">
                         <Avatar className="w-10 h-10">
-                          <AvatarImage src="/placeholder-avatar.svg" />
+                          <AvatarImage src="/placeholder/userplaceholder.svg" />
                           <AvatarFallback>U{i}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">

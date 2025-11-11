@@ -18,8 +18,7 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { ToastContainer } from "@/components/ui/toast";
+import { toast } from "sonner";
 
 interface Notification {
   _id: string;
@@ -49,15 +48,14 @@ interface Notification {
 }
 
 interface NotificationsDropdownProps {
-  unreadCount: number;
+  unreadCount?: number;
 }
 
 export default function NotificationsDropdown({
-  unreadCount,
+  unreadCount = 0,
 }: NotificationsDropdownProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
-  const { toasts, toast, removeToast } = useToast();
 
   const fetchNotifications = async () => {
     setLoading(true);
@@ -76,6 +74,10 @@ export default function NotificationsDropdown({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
   const markAsRead = async (notificationIds: string[]) => {
     try {
@@ -98,6 +100,16 @@ export default function NotificationsDropdown({
       }
     } catch (error) {
       console.error("Error marking notifications as read:", error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    const unreadIds = notifications
+      .filter((notif) => !notif.read)
+      .map((notif) => notif._id);
+    
+    if (unreadIds.length > 0) {
+      await markAsRead(unreadIds);
     }
   };
 
@@ -183,22 +195,24 @@ export default function NotificationsDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative">
+        <Button variant="ghost" className="relative" onClick={fetchNotifications}>
           <Bell className="w-5 h-5" />
-          {unreadCount > 0 && (
+          {notifications.filter((n) => !n.read).length > 0 && (
             <Badge
               variant="destructive"
               className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs"
             >
-              {unreadCount > 99 ? "99+" : unreadCount}
+              {notifications.filter((n) => !n.read).length > 99
+                ? "99+"
+                : notifications.filter((n) => !n.read).length}
             </Badge>
           )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
-        <div className="flex items-center justify-between border-b">
+        <div className="flex items-center justify-between border-b p-2">
           <h4 className="font-semibold">Notificações</h4>
-          {unreadCount > 0 && (
+          {notifications.filter((n) => !n.read).length > 0 && (
             <Button
               variant="ghost"
               size="sm"
@@ -316,8 +330,6 @@ export default function NotificationsDropdown({
           </Button>
         </div>
       </DropdownMenuContent>
-
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </DropdownMenu>
   );
 }

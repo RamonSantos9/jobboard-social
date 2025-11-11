@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { ToastContainer } from "@/components/ui/toast";
+import { toast } from "sonner";
 import {
   Building2,
   Users,
@@ -64,7 +63,6 @@ export default function CompanyPage({ params }: { params: { id: string } }) {
   const [isAdmin, setIsAdmin] = useState(false);
 
   const { data: session } = useSession();
-  const { toasts, toast, removeToast } = useToast();
 
   useEffect(() => {
     if (session) {
@@ -364,7 +362,6 @@ export default function CompanyPage({ params }: { params: { id: string } }) {
         </div>
       </div>
 
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

@@ -5,18 +5,28 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import { Briefcase, Bookmark, BarChart3, Edit } from "lucide-react";
+import LinkedInIcon from "@/components/LinkedInIcon";
 import Link from "next/link";
+
+interface Education {
+  institution: string;
+  degree: string;
+  fieldOfStudy: string;
+  current: boolean;
+}
 
 interface Profile {
   firstName: string;
   lastName: string;
   slug: string;
   photoUrl?: string;
+  bannerUrl?: string;
   headline?: string;
   location?: string;
-  university?: string;
+  education?: Education[];
+  currentCompany?: string;
+  currentTitle?: string;
 }
 
 export default function LeftSidebarJobs() {
@@ -41,9 +51,12 @@ export default function LeftSidebarJobs() {
     fetchProfile();
   }, [session]);
 
+  // Encontrar educação atual
+  const currentEducation = profile?.education?.find((edu) => edu.current);
+
   if (loading)
     return (
-      <aside className="top-14 left-0 h-[calc(100vh-3.5rem)] w-64 bg-white border-r border-gray-200 overflow-y-auto p-4">
+      <aside className="w-full h-full bg-white p-4">
         <div className="animate-pulse space-y-3">
           <div className="w-16 h-16 rounded-full bg-gray-200 mx-auto" />
           <div className="h-3 w-24 bg-gray-200 mx-auto rounded" />
@@ -53,75 +66,104 @@ export default function LeftSidebarJobs() {
     );
 
   return (
-    <aside className="top-14 left-0 h-[calc(100vh-3.5rem)] w-64 bg-[#f3f2ef] border-r border-gray-200 overflow-y-auto px-3 py-5">
+    <aside className="w-full bg-[#f3f2ef]">
       {/* Card de Perfil */}
-      <Card className="rounded-lg overflow-hidden mb-3 shadow-sm border border-gray-200">
-        <div className="bg-gradient-to-r from-gray-100 to-gray-200 h-12 w-full" />
-        <CardContent className="pt-0 flex flex-col items-center -mt-8 pb-4">
-          <Avatar className="w-16 h-16 border-2 border-white shadow-sm">
-            <AvatarImage
-              src={profile?.photoUrl || "/placeholder-avatar.svg"}
-              alt="Profile"
-            />
-            <AvatarFallback>
-              {profile?.firstName?.[0]}
-              {profile?.lastName?.[0]}
-            </AvatarFallback>
-          </Avatar>
+      <Card className="rounded-lg overflow-hidden mb-3 border">
+        <div
+          className="h-12 w-full bg-cover bg-center"
+          style={{
+            backgroundImage: profile?.bannerUrl
+              ? `url(${profile.bannerUrl})`
+              : `url(/placeholder/personbanner.svg)`,
+          }}
+        />
+        <CardContent className="pt-0 flex flex-col items-start -mt-8 pb-4 px-4">
+          <Link
+            href={profile?.slug ? `/jobboard/${profile.slug}` : "#"}
+            className="flex flex-col items-start w-full"
+          >
+            <Avatar className="w-16 h-16 border-2 border-white cursor-pointer hover:opacity-90 transition-opacity">
+              <AvatarImage
+                src={profile?.photoUrl || "/placeholder/userplaceholder.svg"}
+                alt="Profile"
+              />
+              <AvatarFallback>
+                {profile?.firstName?.[0]}
+                {profile?.lastName?.[0]}
+              </AvatarFallback>
+            </Avatar>
 
-          <h3 className="mt-3 text-sm font-semibold text-gray-900">
-            {profile?.firstName} {profile?.lastName}
-          </h3>
+            <h3 className="mt-3 text-sm font-semibold text-black cursor-pointer hover:underline">
+              {profile?.firstName} {profile?.lastName}
+            </h3>
+          </Link>
 
-          <p className="text-xs text-gray-600 text-center px-2 mt-1 leading-tight">
+          <p className="text-xs text-black mt-1">
             {profile?.headline ||
               "Análise e Desenvolvimento de Sistemas | React | Next.js"}
           </p>
 
-          <p className="text-[11px] text-gray-500 mt-1">
+          <p className="text-xs text-black mt-1 font-light">
             {profile?.location || "Cunha, São Paulo"}
           </p>
 
-          {profile?.university && (
-            <p className="text-[11px] text-blue-700 mt-1 text-center">
-              {profile.university}
-            </p>
+          {profile?.currentCompany && profile.currentCompany.trim() !== "" && (
+            <div className="flex items-center gap-1.5 mt-1.5 text-xs text-black">
+              <LinkedInIcon
+                id="company-accent-4"
+                size={16}
+                className="shrink-0"
+              />
+              <span>{profile.currentCompany}</span>
+            </div>
           )}
+
+          {(!profile?.currentCompany || profile.currentCompany.trim() === "") &&
+            currentEducation &&
+            currentEducation.institution && (
+              <div className="flex items-center gap-1.5 mt-1.5 text-xs text-black">
+                <LinkedInIcon
+                  id="company-accent-4"
+                  size={16}
+                  className="shrink-0"
+                />
+                <span>{currentEducation.institution}</span>
+              </div>
+            )}
         </CardContent>
       </Card>
 
-      {/* Card de Ações */}
-      <Card className="rounded-lg overflow-hidden mb-3 shadow-sm border border-gray-200">
+      {/* Card de Ações - Oculto no mobile */}
+      <Card className="hidden lg:block rounded-lg overflow-hidden mb-3 border">
         <CardContent className="p-0">
           <ul className="flex flex-col">
             <li className="hover:bg-gray-100 transition-colors cursor-pointer">
               <Link
                 href="#"
-                className="flex items-center px-4 py-3 text-sm text-gray-700"
+                className="flex items-center px-4 py-3 text-sm text-black"
               >
-                <Briefcase className="w-4 h-4 mr-2 text-gray-500" />
+                <Briefcase className="w-4 h-4 mr-2 text-black" />
                 Preferências
               </Link>
             </li>
             <li className="hover:bg-gray-100 transition-colors cursor-pointer">
               <Link
                 href="#"
-                className="flex items-center px-4 py-3 text-sm text-gray-700"
+                className="flex items-center px-4 py-3 text-sm text-black"
               >
-                <Bookmark className="w-4 h-4 mr-2 text-gray-500" />
+                <Bookmark className="w-4 h-4 mr-2 text-black" />
                 Minhas vagas
               </Link>
             </li>
             <li className="hover:bg-gray-100 transition-colors cursor-pointer">
               <Link
                 href="#"
-                className="flex items-center px-4 py-3 text-sm text-gray-700"
+                className="flex items-center px-4 py-3 text-sm text-black"
               >
-                <BarChart3 className="w-4 h-4 mr-2 text-gray-500" />
+                <BarChart3 className="w-4 h-4 mr-2 text-black" />
                 Minhas estatísticas
               </Link>
             </li>
-            <Separator className="my-1" />
             <li className="hover:bg-gray-100 transition-colors cursor-pointer">
               <Link
                 href="#"
@@ -135,9 +177,9 @@ export default function LeftSidebarJobs() {
         </CardContent>
       </Card>
 
-      {/* Rodapé */}
-      <div className="text-[11px] text-gray-500 leading-relaxed mt-6 space-y-1">
-        <p>Sob re • Acessibilidade • Central de Ajuda</p>
+      {/* Rodapé - Oculto no mobile */}
+      <div className="hidden lg:block text-[11px] text-black/60 leading-relaxed mt-6 space-y-1">
+        <p>Sobre • Acessibilidade • Central de Ajuda</p>
         <p>Termos e Privacidade • Preferências de anúncios</p>
         <p>Publicidade • Serviços empresariais</p>
         <p>Baixe o aplicativo do JobBoard</p>

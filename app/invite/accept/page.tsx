@@ -5,8 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { ToastContainer } from "@/components/ui/toast";
+import { toast } from "sonner";
 import { CheckCircle, AlertCircle, Building2, User } from "lucide-react";
 
 export default function AcceptInvitePage() {
@@ -23,7 +22,6 @@ export default function AcceptInvitePage() {
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const token = searchParams.get("token");
-  const { toasts, toast, removeToast } = useToast();
 
   useEffect(() => {
     if (!token) {
@@ -205,7 +203,6 @@ export default function AcceptInvitePage() {
         </p>
       </div>
 
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </section>
   );
 }

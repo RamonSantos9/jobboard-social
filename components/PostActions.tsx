@@ -23,7 +23,7 @@ import {
   MessageSquare,
   Eye,
 } from "lucide-react";
-import { useToast } from "./ToastProvider";
+import { toast } from "sonner";
 
 interface PostActionsProps {
   postId: string;
@@ -62,7 +62,6 @@ export default function PostActions({
   onWhoCanComment,
   onWhoCanSee,
 }: PostActionsProps) {
-  const { toast } = useToast();
 
   const handleLike = () => {
     onLike?.();
@@ -80,22 +79,13 @@ export default function PostActions({
       const data = await response.json();
 
       if (response.ok) {
-        toast({
-          type: "success",
-          message: "Post compartilhado com sucesso!",
-        });
+        toast.success("Post compartilhado com sucesso!");
       } else {
-        toast({
-          type: "error",
-          message: data.error || "Erro ao compartilhar post",
-        });
+        toast.error(data.error || "Erro ao compartilhar post");
       }
     } catch (error) {
       console.error("Error sharing post:", error);
-      toast({
-        type: "error",
-        message: "Erro ao compartilhar post",
-      });
+      toast.error("Erro ao compartilhar post");
     }
     onShare?.();
   };
@@ -103,15 +93,9 @@ export default function PostActions({
   const handleSave = async () => {
     try {
       // Implementar funcionalidade de salvar post
-      toast({
-        type: "success",
-        message: "Post salvo com sucesso!",
-      });
+      toast.success("Post salvo com sucesso!");
     } catch (error) {
-      toast({
-        type: "error",
-        message: "Erro ao salvar post",
-      });
+      toast.error("Erro ao salvar post");
     }
     onSave?.();
   };
@@ -119,53 +103,35 @@ export default function PostActions({
   const handleRemoveFromHighlights = async () => {
     try {
       // Implementar funcionalidade de remover dos destaques
-      toast({
-        type: "success",
-        message: "Post removido dos destaques!",
-      });
+      toast.success("Post removido dos destaques!");
     } catch (error) {
-      toast({
-        type: "error",
-        message: "Erro ao remover dos destaques",
-      });
+      toast.error("Erro ao remover dos destaques");
     }
     onRemoveFromHighlights?.();
   };
 
   const handleEdit = () => {
     // Implementar funcionalidade de editar post
-    toast({
-      type: "info",
-      message: "Funcionalidade de edição em desenvolvimento",
-    });
+    toast.info("Funcionalidade de edição em desenvolvimento");
     onEdit?.();
   };
 
   const handleWhoCanComment = () => {
     // Implementar funcionalidade de quem pode comentar
-    toast({
-      type: "info",
-      message: "Funcionalidade de privacidade em desenvolvimento",
-    });
+    toast.info("Funcionalidade de privacidade em desenvolvimento");
     onWhoCanComment?.();
   };
 
   const handleWhoCanSee = () => {
     // Implementar funcionalidade de quem pode ver
-    toast({
-      type: "info",
-      message: "Funcionalidade de privacidade em desenvolvimento",
-    });
+    toast.info("Funcionalidade de privacidade em desenvolvimento");
     onWhoCanSee?.();
   };
 
   const handleCopyLink = () => {
     const postUrl = `${window.location.origin}/posts/${postId}`;
     navigator.clipboard.writeText(postUrl);
-    toast({
-      type: "success",
-      message: "Link copiado para a área de transferência!",
-    });
+    toast.success("Link copiado para a área de transferência!");
     onCopyLink?.();
   };
 

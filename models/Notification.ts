@@ -5,7 +5,9 @@ export interface INotification extends Document {
   userId: mongoose.Types.ObjectId;
   type:
     | "like"
+    | "reaction"
     | "comment"
+    | "share"
     | "connection"
     | "job"
     | "message"
@@ -17,11 +19,13 @@ export interface INotification extends Document {
   accepted?: boolean;
   relatedUserId?: mongoose.Types.ObjectId;
   relatedPostId?: mongoose.Types.ObjectId;
+  relatedCommentId?: mongoose.Types.ObjectId;
   metadata?: {
     companyId?: mongoose.Types.ObjectId;
     inviteId?: mongoose.Types.ObjectId;
     role?: string;
     invitedBy?: mongoose.Types.ObjectId;
+    reactionType?: string; // Tipo de reação ('like', 'celebrate', 'support', etc.)
   };
   createdAt: Date;
   updatedAt: Date;
@@ -39,7 +43,9 @@ const NotificationSchema = new Schema<INotification>(
       type: String,
       enum: [
         "like",
+        "reaction",
         "comment",
+        "share",
         "connection",
         "job",
         "message",
@@ -73,6 +79,10 @@ const NotificationSchema = new Schema<INotification>(
       type: Schema.Types.ObjectId,
       ref: "Post",
     },
+    relatedCommentId: {
+      type: Schema.Types.ObjectId,
+      ref: "Comment",
+    },
     metadata: {
       companyId: {
         type: Schema.Types.ObjectId,
@@ -87,6 +97,7 @@ const NotificationSchema = new Schema<INotification>(
         type: Schema.Types.ObjectId,
         ref: "User",
       },
+      reactionType: String, // Tipo de reação ('like', 'celebrate', 'support', etc.)
     },
   },
   {

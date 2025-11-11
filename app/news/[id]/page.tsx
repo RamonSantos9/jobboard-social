@@ -168,7 +168,7 @@ export default function NewsDetailPage() {
                     <div className="flex items-center space-x-3">
                       <Avatar className="w-12 h-12">
                         <AvatarImage
-                          src={news.authorImage || "/placeholder-avatar.svg"}
+                          src={news.authorImage || "/placeholder/userplaceholder.svg"}
                         />
                         <AvatarFallback>
                           {news.author

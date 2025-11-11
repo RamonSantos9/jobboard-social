@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/auth";
 import connectDB from "@/lib/db";
 import Application from "@/models/Application";
-import Job from "@/models/Job";
+import Company from "@/models/Company";
+import Vacancy from "@/models/Vacancy";
+import Notification from "@/models/Notification";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json(
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { jobId, coverLetter } = await request.json();
+    const { jobId, coverLetter, resumeUrl } = await request.json();
 
     if (!jobId) {
       return NextResponse.json(
@@ -40,8 +41,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if job exists and is active
-    const job = await Job.findOne({ _id: jobId, status: "active" });
+    // Check if vacancy exists and is published
+    const job = await Vacancy.findOne({ _id: jobId, status: "published" });
     if (!job) {
       return NextResponse.json(
         { error: "Vaga não encontrada ou não está mais ativa" },
@@ -52,15 +53,51 @@ export async function POST(request: NextRequest) {
     const application = new Application({
       jobId,
       candidateId: session.user.id,
-      coverLetter,
+      coverLetter: coverLetter || undefined,
+      resumeUrl: resumeUrl || undefined,
     });
 
     await application.save();
 
     // Update job applications count
-    await Job.findByIdAndUpdate(jobId, {
+    await Vacancy.findByIdAndUpdate(jobId, {
       $inc: { applicationsCount: 1 },
     });
+
+    // Notificar recrutadores da empresa
+    if (job.companyId) {
+      const company = await Company.findById(job.companyId)
+        .select("name recruiters admins")
+        .lean();
+
+      if (company) {
+        const recipients = new Set<string>();
+        (company.recruiters || []).forEach((recruiter: any) =>
+          recipients.add(recruiter.toString())
+        );
+        (company.admins || []).forEach((admin: any) =>
+          recipients.add(admin.toString())
+        );
+
+        const candidateName = session.user.name || "Um candidato";
+
+        await Promise.all(
+          Array.from(recipients).map((userId) =>
+            Notification.create({
+              userId,
+              type: "job",
+              title: "Nova candidatura recebida",
+              message: `${candidateName} se candidatou à vaga ${job.title}.`,
+              link: `/jobs/${jobId}`,
+              relatedUserId: session.user.id,
+              metadata: {
+                companyId: company._id,
+              },
+            })
+          )
+        );
+      }
+    }
 
     return NextResponse.json(
       { message: "Candidatura enviada com sucesso", application },
@@ -77,7 +114,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json(

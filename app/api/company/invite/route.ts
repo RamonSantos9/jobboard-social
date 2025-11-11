@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { auth } from "@/auth";
 import crypto from "crypto";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";

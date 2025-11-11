@@ -38,7 +38,7 @@ export default function AuthGuard({
 
       // Se requer autenticação mas não está logado
       if (!session) {
-        router.push("/auth/login");
+        router.push("/feed/auth/login");
         return;
       }
 

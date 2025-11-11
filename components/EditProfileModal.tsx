@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { X, Plus, Trash2, Edit2 } from "lucide-react";
-import { useToast } from "./ToastProvider";
+import { toast } from "sonner";
 
 interface ProfileData {
   currentTitle?: string;
@@ -62,7 +62,6 @@ export default function EditProfileModal({
   onProfileUpdated,
 }: EditProfileModalProps) {
   const { data: session } = useSession();
-  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData>({
     experience: [],
@@ -135,23 +134,14 @@ export default function EditProfileModal({
       const data = await response.json();
 
       if (response.ok) {
-        toast({
-          type: "success",
-          title: "Perfil atualizado com sucesso!",
-        });
+        toast.success("Perfil atualizado com sucesso!");
         onProfileUpdated?.();
         onOpenChange(false);
       } else {
-        toast({
-          type: "error",
-          title: data.error || "Erro ao atualizar perfil",
-        });
+        toast.error(data.error || "Erro ao atualizar perfil");
       }
     } catch (error) {
-      toast({
-        type: "error",
-        title: "Erro ao atualizar perfil",
-      });
+      toast.error("Erro ao atualizar perfil");
     } finally {
       setLoading(false);
     }

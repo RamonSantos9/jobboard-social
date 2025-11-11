@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
+import bcrypt from "bcryptjs";
 
 export interface ICompany extends Document {
   _id: string;
@@ -6,6 +7,8 @@ export interface ICompany extends Document {
   recruiters: mongoose.Types.ObjectId[];
   name: string;
   cnpj: string;
+  email: string;
+  password: string;
   industry: string;
   website?: string;
   logoUrl?: string;
@@ -25,8 +28,10 @@ export interface ICompany extends Document {
     facebook?: string;
     instagram?: string;
   };
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 const CompanySchema = new Schema<ICompany>(
@@ -54,6 +59,18 @@ const CompanySchema = new Schema<ICompany>(
       required: [true, "CNPJ é obrigatório"],
       unique: true,
       trim: true,
+    },
+    email: {
+      type: String,
+      required: [true, "Email é obrigatório"],
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: [true, "Senha é obrigatória"],
+      minlength: [6, "Senha deve ter pelo menos 6 caracteres"],
     },
     industry: {
       type: String,
@@ -97,11 +114,35 @@ const CompanySchema = new Schema<ICompany>(
       facebook: String,
       instagram: String,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+// Hash password before saving
+CompanySchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+
+  try {
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
+// Compare password method
+CompanySchema.methods.comparePassword = async function (
+  candidatePassword: string
+): Promise<boolean> {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 export default mongoose.models.Company ||
   mongoose.model<ICompany>("Company", CompanySchema);

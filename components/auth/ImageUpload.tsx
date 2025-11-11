@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 interface ImageUploadProps {
   onUploadComplete: (url: string) => void;
@@ -32,14 +32,18 @@ export default function ImageUpload({
 
     // Validar tipo
     if (!file.type.startsWith("image/")) {
-      toast.error("Por favor, selecione uma imagem válida");
+      toast.error("Erro", {
+        description: "Por favor, selecione uma imagem válida",
+      });
       return;
     }
 
     // Validar tamanho
     const maxSizeBytes = maxSize * 1024 * 1024;
     if (file.size > maxSizeBytes) {
-      toast.error(`A imagem deve ter no máximo ${maxSize}MB`);
+      toast.error("Erro", {
+        description: `A imagem deve ter no máximo ${maxSize}MB`,
+      });
       return;
     }
 
@@ -57,8 +61,13 @@ export default function ImageUpload({
       formData.append("file", file);
       formData.append("upload_preset", "jobboard_social");
 
+      const cloudinaryCloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+      if (!cloudinaryCloudName) {
+        throw new Error("Cloudinary não configurado");
+      }
+
       const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`,
         {
           method: "POST",
           body: formData,
@@ -71,9 +80,13 @@ export default function ImageUpload({
 
       const data = await response.json();
       onUploadComplete(data.secure_url);
-      toast.success("Imagem enviada com sucesso!");
+      toast.success("Sucesso", {
+        description: "Imagem enviada com sucesso!",
+      });
     } catch (error) {
-      toast.error("Erro ao enviar imagem");
+      toast.error("Erro", {
+        description: "Erro ao enviar imagem",
+      });
       setPreview(currentImage || null);
     } finally {
       setUploading(false);

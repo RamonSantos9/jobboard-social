@@ -29,7 +29,7 @@ import {
 import { Check, ChevronsUpDown, HelpCircle, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { useToast } from "./ToastProvider";
+import { toast } from "sonner";
 
 interface Company {
   _id: string;
@@ -55,13 +55,20 @@ const jobTypes = [
   { value: "internship", label: "Estágio" },
 ];
 
+const levels = [
+  { value: "junior", label: "Júnior" },
+  { value: "mid", label: "Pleno" },
+  { value: "senior", label: "Sênior" },
+  { value: "lead", label: "Lead" },
+  { value: "executive", label: "Executivo" },
+];
+
 export default function CreateJobModal({
   open,
   onOpenChange,
   onJobCreated,
 }: CreateJobModalProps) {
   const { data: session } = useSession();
-  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [formData, setFormData] = useState({
@@ -70,16 +77,20 @@ export default function CreateJobModal({
     workLocationType: "",
     location: "",
     jobType: "",
+    level: "mid",
     description: "",
     salaryMin: "",
     salaryMax: "",
     requirements: [] as string[],
     benefits: [] as string[],
+    skills: [] as string[],
   });
   const [workLocationOpen, setWorkLocationOpen] = useState(false);
   const [jobTypeOpen, setJobTypeOpen] = useState(false);
+  const [levelOpen, setLevelOpen] = useState(false);
   const [newRequirement, setNewRequirement] = useState("");
   const [newBenefit, setNewBenefit] = useState("");
+  const [newSkill, setNewSkill] = useState("");
 
   useEffect(() => {
     if (open && session) {
@@ -121,16 +132,14 @@ export default function CreateJobModal({
           ...formData,
           salaryMin: formData.salaryMin ? parseFloat(formData.salaryMin) : undefined,
           salaryMax: formData.salaryMax ? parseFloat(formData.salaryMax) : undefined,
+          skills: formData.skills || [],
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        toast({
-          type: "success",
-          title: "Vaga criada com sucesso!",
-        });
+        toast.success("Vaga criada com sucesso!");
         onJobCreated?.();
         onOpenChange(false);
         // Reset form
@@ -140,23 +149,20 @@ export default function CreateJobModal({
           workLocationType: "",
           location: "",
           jobType: "",
+          level: "mid",
           description: "",
           salaryMin: "",
           salaryMax: "",
           requirements: [],
           benefits: [],
+          skills: [],
         });
+        setNewSkill("");
       } else {
-        toast({
-          type: "error",
-          title: data.error || "Erro ao criar vaga",
-        });
+        toast.error(data.error || "Erro ao criar vaga");
       }
     } catch (error) {
-      toast({
-        type: "error",
-        title: "Erro ao criar vaga",
-      });
+      toast.error("Erro ao criar vaga");
     } finally {
       setLoading(false);
     }
@@ -196,10 +202,28 @@ export default function CreateJobModal({
     }));
   };
 
+  const addSkill = () => {
+    if (newSkill.trim()) {
+      setFormData((prev) => ({
+        ...prev,
+        skills: [...prev.skills, newSkill.trim()],
+      }));
+      setNewSkill("");
+    }
+  };
+
+  const removeSkill = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      skills: prev.skills.filter((_, i) => i !== index),
+    }));
+  };
+
   const selectedWorkLocation = workLocationTypes.find(
     (type) => type.value === formData.workLocationType
   );
   const selectedJobType = jobTypes.find((type) => type.value === formData.jobType);
+  const selectedLevel = levels.find((level) => level.value === formData.level);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -371,6 +395,54 @@ export default function CreateJobModal({
             </Popover>
           </div>
 
+          {/* Nível */}
+          <div>
+            <Label htmlFor="level">Nível</Label>
+            <Popover open={levelOpen} onOpenChange={setLevelOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={levelOpen}
+                  className="w-full justify-between mt-1"
+                >
+                  {selectedLevel ? selectedLevel.label : "Selecione o nível..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar nível..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum nível encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {levels.map((level) => (
+                        <CommandItem
+                          key={level.value}
+                          value={level.value}
+                          onSelect={() => {
+                            setFormData({ ...formData, level: level.value });
+                            setLevelOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.level === level.value
+                                ? "opacity-100"
+                                : "opacity-0"
+                            )}
+                          />
+                          {level.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
           {/* Descrição */}
           <div>
             <Label htmlFor="description">Descrição da vaga</Label>
@@ -477,6 +549,41 @@ export default function CreateJobModal({
                   <button
                     type="button"
                     onClick={() => removeBenefit(index)}
+                    className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          {/* Skills */}
+          <div>
+            <Label>Habilidades/Skills</Label>
+            <div className="flex gap-2 mt-1">
+              <Input
+                value={newSkill}
+                onChange={(e) => setNewSkill(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addSkill();
+                  }
+                }}
+                placeholder="Adicionar skill (ex: React, Node.js)"
+              />
+              <Button type="button" onClick={addSkill}>
+                <Check className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {formData.skills.map((skill, index) => (
+                <Badge key={index} variant="secondary" className="gap-1">
+                  {skill}
+                  <button
+                    type="button"
+                    onClick={() => removeSkill(index)}
                     className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
                   >
                     <X className="w-3 h-3" />

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { auth } from "@/auth";
 import connectDB from "@/lib/db";
 import Notification from "@/models/Notification";
 import User from "@/models/User";
@@ -7,7 +7,7 @@ import Company from "@/models/Company";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession();
+    const session = await auth();
 
     if (!session || !session.user) {
       return NextResponse.json(
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession();
+    const session = await auth();
 
     if (!session || !session.user) {
       return NextResponse.json(

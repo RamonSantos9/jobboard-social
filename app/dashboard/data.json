@@ -1,0 +1,614 @@
+[
+  {
+    "id": 1,
+    "empresa": "Página de capa",
+    "tipoSecao": "Página de capa",
+    "statusSecao": "Em andamento",
+    "meta": "18",
+    "limite": "5",
+    "revisor": "Eddie Lake"
+  },
+  {
+    "id": 2,
+    "empresa": "Índice",
+    "tipoSecao": "Índice",
+    "statusSecao": "Concluído",
+    "meta": "29",
+    "limite": "24",
+    "revisor": "Eddie Lake"
+  },
+  {
+    "id": 3,
+    "empresa": "Resumo executivo",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "10",
+    "limite": "13",
+    "revisor": "Eddie Lake"
+  },
+  {
+    "id": 4,
+    "empresa": "Abordagem técnica",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "27",
+    "limite": "23",
+    "revisor": "Jamik Tashpulatov"
+  },
+  {
+    "id": 5,
+    "empresa": "Design",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Em andamento",
+    "meta": "2",
+    "limite": "16",
+    "revisor": "Jamik Tashpulatov"
+  },
+  {
+    "id": 6,
+    "empresa": "Capacidades",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Em andamento",
+    "meta": "20",
+    "limite": "8",
+    "revisor": "Jamik Tashpulatov"
+  },
+  {
+    "id": 7,
+    "empresa": "Integração com sistemas existentes",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Em andamento",
+    "meta": "19",
+    "limite": "21",
+    "revisor": "Jamik Tashpulatov"
+  },
+  {
+    "id": 8,
+    "empresa": "Inovação e vantagens",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "25",
+    "limite": "26",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 9,
+    "empresa": "Visão geral das soluções inovadoras",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Concluído",
+    "meta": "7",
+    "limite": "23",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 10,
+    "empresa": "Algoritmos avançados e aprendizado de máquina",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "30",
+    "limite": "28",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 11,
+    "empresa": "Protocolos de comunicação adaptáveis",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "9",
+    "limite": "31",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 12,
+    "empresa": "Vantagens sobre tecnologias atuais",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "12",
+    "limite": "0",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 13,
+    "empresa": "Desempenho anterior",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "22",
+    "limite": "33",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 14,
+    "empresa": "Feedback do cliente e níveis de satisfação",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "15",
+    "limite": "34",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 15,
+    "empresa": "Desafios de implementação e soluções",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "3",
+    "limite": "35",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 16,
+    "empresa": "Medidas de segurança e políticas de proteção de dados",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Em andamento",
+    "meta": "6",
+    "limite": "36",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 17,
+    "empresa": "Escalabilidade e à prova do futuro",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "4",
+    "limite": "37",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 18,
+    "empresa": "Análise de custo-benefício",
+    "tipoSecao": "Linguagem simples",
+    "statusSecao": "Concluído",
+    "meta": "14",
+    "limite": "38",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 19,
+    "empresa": "Experiência de treinamento e integração de usuários",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "17",
+    "limite": "39",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 20,
+    "empresa": "Roteiro de desenvolvimento futuro",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "11",
+    "limite": "40",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 21,
+    "empresa": "Visão geral da arquitetura do sistema",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Em andamento",
+    "meta": "24",
+    "limite": "18",
+    "revisor": "Maya Johnson"
+  },
+  {
+    "id": 22,
+    "empresa": "Plano de gerenciamento de riscos",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "15",
+    "limite": "22",
+    "revisor": "Carlos Rodriguez"
+  },
+  {
+    "id": 23,
+    "empresa": "Documentação de conformidade",
+    "tipoSecao": "Legal",
+    "statusSecao": "Em andamento",
+    "meta": "31",
+    "limite": "27",
+    "revisor": "Sarah Chen"
+  },
+  {
+    "id": 24,
+    "empresa": "Documentação da API",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Concluído",
+    "meta": "8",
+    "limite": "12",
+    "revisor": "Raj Patel"
+  },
+  {
+    "id": 25,
+    "empresa": "Mockups de interface do usuário",
+    "tipoSecao": "Visual",
+    "statusSecao": "Em andamento",
+    "meta": "19",
+    "limite": "25",
+    "revisor": "Leila Ahmadi"
+  },
+  {
+    "id": 26,
+    "empresa": "Esquema do banco de dados",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Concluído",
+    "meta": "22",
+    "limite": "20",
+    "revisor": "Thomas Wilson"
+  },
+  {
+    "id": 27,
+    "empresa": "Metodologia de testes",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Em andamento",
+    "meta": "17",
+    "limite": "14",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 28,
+    "empresa": "Estratégia de implantação",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "26",
+    "limite": "30",
+    "revisor": "Eddie Lake"
+  },
+  {
+    "id": 29,
+    "empresa": "Detalhamento do orçamento",
+    "tipoSecao": "Financeiro",
+    "statusSecao": "Em andamento",
+    "meta": "13",
+    "limite": "16",
+    "revisor": "Jamik Tashpulatov"
+  },
+  {
+    "id": 30,
+    "empresa": "Análise de mercado",
+    "tipoSecao": "Pesquisa",
+    "statusSecao": "Concluído",
+    "meta": "29",
+    "limite": "32",
+    "revisor": "Sophia Martinez"
+  },
+  {
+    "id": 31,
+    "empresa": "Comparação com concorrentes",
+    "tipoSecao": "Pesquisa",
+    "statusSecao": "Em andamento",
+    "meta": "21",
+    "limite": "19",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 32,
+    "empresa": "Plano de manutenção",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Concluído",
+    "meta": "16",
+    "limite": "23",
+    "revisor": "Alex Thompson"
+  },
+  {
+    "id": 33,
+    "empresa": "Personas do usuário",
+    "tipoSecao": "Pesquisa",
+    "statusSecao": "Em andamento",
+    "meta": "27",
+    "limite": "24",
+    "revisor": "Nina Patel"
+  },
+  {
+    "id": 34,
+    "empresa": "Conformidade de acessibilidade",
+    "tipoSecao": "Legal",
+    "statusSecao": "Concluído",
+    "meta": "18",
+    "limite": "21",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 35,
+    "empresa": "Métricas de desempenho",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Em andamento",
+    "meta": "23",
+    "limite": "26",
+    "revisor": "David Kim"
+  },
+  {
+    "id": 36,
+    "empresa": "Plano de recuperação de desastres",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Concluído",
+    "meta": "14",
+    "limite": "17",
+    "revisor": "Jamik Tashpulatov"
+  },
+  {
+    "id": 37,
+    "empresa": "Integrações de terceiros",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Em andamento",
+    "meta": "25",
+    "limite": "28",
+    "revisor": "Eddie Lake"
+  },
+  {
+    "id": 38,
+    "empresa": "Resumo do feedback do usuário",
+    "tipoSecao": "Pesquisa",
+    "statusSecao": "Concluído",
+    "meta": "20",
+    "limite": "15",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 39,
+    "empresa": "Estratégia de localização",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Em andamento",
+    "meta": "12",
+    "limite": "19",
+    "revisor": "Maria Garcia"
+  },
+  {
+    "id": 40,
+    "empresa": "Compatibilidade com dispositivos móveis",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Concluído",
+    "meta": "28",
+    "limite": "31",
+    "revisor": "James Wilson"
+  },
+  {
+    "id": 41,
+    "empresa": "Plano de migração de dados",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Em andamento",
+    "meta": "19",
+    "limite": "22",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 42,
+    "empresa": "Protocolos de garantia de qualidade",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Concluído",
+    "meta": "30",
+    "limite": "33",
+    "revisor": "Priya Singh"
+  },
+  {
+    "id": 43,
+    "empresa": "Análise de partes interessadas",
+    "tipoSecao": "Pesquisa",
+    "statusSecao": "Em andamento",
+    "meta": "11",
+    "limite": "14",
+    "revisor": "Eddie Lake"
+  },
+  {
+    "id": 44,
+    "empresa": "Avaliação de impacto ambiental",
+    "tipoSecao": "Pesquisa",
+    "statusSecao": "Concluído",
+    "meta": "24",
+    "limite": "27",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 45,
+    "empresa": "Direitos de propriedade intelectual",
+    "tipoSecao": "Legal",
+    "statusSecao": "Em andamento",
+    "meta": "17",
+    "limite": "20",
+    "revisor": "Sarah Johnson"
+  },
+  {
+    "id": 46,
+    "empresa": "Estrutura de suporte ao cliente",
+    "tipoSecao": "Narrativa",
+    "statusSecao": "Concluído",
+    "meta": "22",
+    "limite": "25",
+    "revisor": "Jamik Tashpulatov"
+  },
+  {
+    "id": 47,
+    "empresa": "Estratégia de controle de versão",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Em andamento",
+    "meta": "15",
+    "limite": "18",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 48,
+    "empresa": "Pipeline de integração contínua",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Concluído",
+    "meta": "26",
+    "limite": "29",
+    "revisor": "Michael Chen"
+  },
+  {
+    "id": 49,
+    "empresa": "Conformidade regulatória",
+    "tipoSecao": "Legal",
+    "statusSecao": "Em andamento",
+    "meta": "13",
+    "limite": "16",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 50,
+    "empresa": "Sistema de autenticação do usuário",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Concluído",
+    "meta": "28",
+    "limite": "31",
+    "revisor": "Eddie Lake"
+  },
+  {
+    "id": 51,
+    "empresa": "Framework de análise de dados",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Em andamento",
+    "meta": "21",
+    "limite": "24",
+    "revisor": "Jamik Tashpulatov"
+  },
+  {
+    "id": 52,
+    "empresa": "Infraestrutura em nuvem",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Concluído",
+    "meta": "16",
+    "limite": "19",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 53,
+    "empresa": "Medidas de segurança de rede",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Em andamento",
+    "meta": "29",
+    "limite": "32",
+    "revisor": "Lisa Wong"
+  },
+  {
+    "id": 54,
+    "empresa": "Cronograma do projeto",
+    "tipoSecao": "Planejamento",
+    "statusSecao": "Concluído",
+    "meta": "14",
+    "limite": "17",
+    "revisor": "Eddie Lake"
+  },
+  {
+    "id": 55,
+    "empresa": "Alocação de recursos",
+    "tipoSecao": "Planejamento",
+    "statusSecao": "Em andamento",
+    "meta": "27",
+    "limite": "30",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 56,
+    "empresa": "Estrutura e funções da equipe",
+    "tipoSecao": "Planejamento",
+    "statusSecao": "Concluído",
+    "meta": "20",
+    "limite": "23",
+    "revisor": "Jamik Tashpulatov"
+  },
+  {
+    "id": 57,
+    "empresa": "Protocolos de comunicação",
+    "tipoSecao": "Planejamento",
+    "statusSecao": "Em andamento",
+    "meta": "15",
+    "limite": "18",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 58,
+    "empresa": "Métricas de sucesso",
+    "tipoSecao": "Planejamento",
+    "statusSecao": "Concluído",
+    "meta": "30",
+    "limite": "33",
+    "revisor": "Eddie Lake"
+  },
+  {
+    "id": 59,
+    "empresa": "Suporte à internacionalização",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Em andamento",
+    "meta": "23",
+    "limite": "26",
+    "revisor": "Jamik Tashpulatov"
+  },
+  {
+    "id": 60,
+    "empresa": "Procedimentos de backup e recuperação",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Concluído",
+    "meta": "18",
+    "limite": "21",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 61,
+    "empresa": "Sistema de monitoramento e alertas",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Em andamento",
+    "meta": "25",
+    "limite": "28",
+    "revisor": "Daniel Park"
+  },
+  {
+    "id": 62,
+    "empresa": "Diretrizes de revisão de código",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Concluído",
+    "meta": "12",
+    "limite": "15",
+    "revisor": "Eddie Lake"
+  },
+  {
+    "id": 63,
+    "empresa": "Padrões de documentação",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Em andamento",
+    "meta": "27",
+    "limite": "30",
+    "revisor": "Jamik Tashpulatov"
+  },
+  {
+    "id": 64,
+    "empresa": "Processo de gerenciamento de lançamento",
+    "tipoSecao": "Planejamento",
+    "statusSecao": "Concluído",
+    "meta": "22",
+    "limite": "25",
+    "revisor": "Atribuir revisor"
+  },
+  {
+    "id": 65,
+    "empresa": "Matriz de priorização de recursos",
+    "tipoSecao": "Planejamento",
+    "statusSecao": "Em andamento",
+    "meta": "19",
+    "limite": "22",
+    "revisor": "Emma Davis"
+  },
+  {
+    "id": 66,
+    "empresa": "Avaliação da dívida técnica",
+    "tipoSecao": "Conteúdo técnico",
+    "statusSecao": "Concluído",
+    "meta": "24",
+    "limite": "27",
+    "revisor": "Eddie Lake"
+  },
+  {
+    "id": 67,
+    "empresa": "Planejamento de capacidade",
+    "tipoSecao": "Planejamento",
+    "statusSecao": "Em andamento",
+    "meta": "21",
+    "limite": "24",
+    "revisor": "Jamik Tashpulatov"
+  },
+  {
+    "id": 68,
+    "empresa": "Acordos de nível de serviço",
+    "tipoSecao": "Legal",
+    "statusSecao": "Concluído",
+    "meta": "26",
+    "limite": "29",
+    "revisor": "Atribuir revisor"
+  }
+]

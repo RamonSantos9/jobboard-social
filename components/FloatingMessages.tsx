@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ChevronUp, MoreHorizontal } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,15 +8,12 @@ import { Card, CardContent } from "@/components/ui/card";
 export default function FloatingMessages() {
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      <Card className="w-80 shadow-lg">
-        <CardContent className="p-3">
-          <div className="flex items-center justify-between mb-3">
+      <Card className="w-80">
+        <CardContent className="">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Avatar className="w-8 h-8">
-                <AvatarImage src="/placeholder-avatar.svg" />
-                <AvatarFallback className="bg-green-500 text-white">
-                  MS
-                </AvatarFallback>
+                <AvatarImage src="/placeholder/userplaceholder.svg" />
               </Avatar>
               <span className="text-sm font-medium">Mensagens</span>
             </div>
@@ -30,7 +27,7 @@ export default function FloatingMessages() {
             </div>
           </div>
 
-          <div className="text-xs text-gray-500 text-center">
+          <div className="text-xs text-black text-center">
             Nenhuma mensagem nova
           </div>
         </CardContent>

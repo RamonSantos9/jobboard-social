@@ -61,7 +61,7 @@ export const authOptions: NextAuthOptions = {
     },
   },
   pages: {
-    signIn: "/auth/login",
+    signIn: "/feed/auth/login",
     // signUp não é suportado nativamente
     // Você pode criar manualmente a rota /auth/register sem precisar registrá-la aqui
   },

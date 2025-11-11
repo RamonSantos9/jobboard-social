@@ -6,6 +6,7 @@ export interface IProfile extends Document {
   lastName: string;
   slug: string;
   photoUrl?: string;
+  bannerUrl?: string;
   headline?: string;
   location?: string;
   bio?: string;
@@ -37,6 +38,7 @@ export interface IProfile extends Document {
     description?: string;
   }>;
   connections?: mongoose.Types.ObjectId[];
+  followersCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,6 +69,10 @@ const ProfileSchema = new Schema<IProfile>(
       lowercase: true,
     },
     photoUrl: {
+      type: String,
+      default: null,
+    },
+    bannerUrl: {
       type: String,
       default: null,
     },
@@ -191,6 +197,10 @@ const ProfileSchema = new Schema<IProfile>(
         ref: "User",
       },
     ],
+    followersCount: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import Company from "@/models/Company";
@@ -60,10 +60,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Gerar email único baseado no CNPJ (sem caracteres especiais)
+    const cleanCnpj = cnpj.replace(/\D/g, ""); // Remove caracteres não numéricos
+    let email = `empresa-${cleanCnpj}@jobboard.local`;
+    let emailCounter = 1;
+    
+    // Garantir que o email seja único
+    while (await Company.findOne({ email })) {
+      email = `empresa-${cleanCnpj}-${emailCounter}@jobboard.local`;
+      emailCounter++;
+    }
+
+    // Gerar senha inicial (pode ser o CNPJ limpo ou uma senha padrão)
+    // Por segurança, vamos usar o CNPJ limpo como senha inicial (o hash será feito automaticamente)
+    const initialPassword = cleanCnpj;
+
     // Criar empresa
     const company = new Company({
       name,
       cnpj,
+      email,
+      password: initialPassword, // Será hasheado automaticamente pelo pre-save hook
       industry,
       description,
       size,
@@ -74,6 +91,7 @@ export async function POST(request: NextRequest) {
       jobsCount: 0,
       isVerified: false,
       benefits: [],
+      isActive: true,
     });
 
     await company.save();
@@ -93,6 +111,11 @@ export async function POST(request: NextRequest) {
           name: company.name,
           cnpj: company.cnpj,
           industry: company.industry,
+        },
+        credentials: {
+          email: email,
+          password: initialPassword, // Retornar senha em texto claro apenas na criação
+          message: "Guarde estas credenciais com segurança. A senha deve ser alterada no primeiro login.",
         },
       },
       { status: 201 }

@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/auth";
 import connectDB from "@/lib/db";
 import Post from "@/models/Post";
+import Notification from "@/models/Notification";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json(
         { error: "Usuário não autenticado" },
         { status: 401 }
@@ -20,7 +20,8 @@ export async function POST(
 
     await connectDB();
 
-    const post = await Post.findById(params.id);
+    const { id } = await params;
+    const post = await Post.findById(id);
     if (!post) {
       return NextResponse.json(
         { error: "Post não encontrado" },
@@ -28,17 +29,32 @@ export async function POST(
       );
     }
 
+    const userId = session.user.id;
+
     // Incrementar contador de compartilhamentos
-    await Post.findByIdAndUpdate(params.id, {
-      $inc: { sharesCount: 1 },
-    });
+    post.sharesCount = (post.sharesCount || 0) + 1;
+    await post.save();
+
+    // Criar notificação para o autor do post (se não for o próprio usuário)
+    if (post.authorId.toString() !== userId.toString()) {
+      await Notification.create({
+        userId: post.authorId,
+        type: "share",
+        title: "Publicação compartilhada",
+        message: "Alguém compartilhou sua publicação",
+        link: `/feed`,
+        relatedPostId: post._id,
+        relatedUserId: userId,
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      message: "Post compartilhado com sucesso",
+      sharesCount: post.sharesCount,
+      link: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/posts/${post._id}`,
     });
   } catch (error) {
-    console.error("Share post error:", error);
+    console.error("Erro ao compartilhar post:", error);
     return NextResponse.json(
       { error: "Erro ao compartilhar post" },
       { status: 500 }

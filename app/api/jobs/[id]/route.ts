@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import Job from "@/models/Job";
+import Vacancy from "@/models/Vacancy";
 
 export async function GET(
   request: NextRequest,
@@ -9,7 +9,7 @@ export async function GET(
   try {
     await connectDB();
 
-    const job = await Job.findById(params.id)
+    const job = await Vacancy.findById(params.id)
       .populate("companyId", "name logoUrl description location industry size")
       .lean();
 
@@ -21,7 +21,7 @@ export async function GET(
     }
 
     // Incrementar contador de visualizações
-    await Job.findByIdAndUpdate(params.id, {
+    await Vacancy.findByIdAndUpdate(params.id, {
       $inc: { viewsCount: 1 },
     });
 
