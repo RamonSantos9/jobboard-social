@@ -619,7 +619,8 @@ export default function PostCard({
 
               return (
                 <div className="flex items-center gap-2">
-                  <div className="flex -space-x-4">
+                  {/* Ícones de reação sobrepostos */}
+                  <div className="flex items-center -space-x-2">
                     {activeReactions.map((reaction, index) => {
                       const iconMap = {
                         like: "/images/icons/like.svg",
@@ -634,20 +635,25 @@ export default function PostCard({
 
                       return (
                         <div
-                          key={reaction.type}
-                          className="w-4 h-4 rounded-full flex items-center justify-center"
-                          style={{ backgroundColor: bgColorMap[reaction.type] }}
+                          key={`reaction-${reaction.type}`}
+                          className="w-5 h-5 rounded-full flex items-center justify-center border-2 border-white relative"
+                          style={{
+                            backgroundColor: bgColorMap[reaction.type],
+                            zIndex: activeReactions.length - index,
+                          }}
                         >
                           <img
                             src={iconMap[reaction.type]}
                             alt={reaction.type}
-                            className="w-5 h-5"
+                            className="w-3 h-3"
                           />
                         </div>
                       );
                     })}
                   </div>
-                  <span className="text-black font-medium">
+
+                  {/* Contagem total */}
+                  <span className="text-black font-medium ml-1">
                     {totalReactions}
                   </span>
                 </div>
