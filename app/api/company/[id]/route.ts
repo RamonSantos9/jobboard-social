@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { connectDB } from "@/lib/db";
+import connectDB from "@/lib/db";
 import Company from "@/models/Company";
 import Invite from "@/models/Invite";
 
