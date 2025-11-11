@@ -95,10 +95,57 @@ export default function MainFeed() {
   const { data: session } = useSession();
 
   useEffect(() => {
-    fetchPosts();
+    fetchPosts(true); // Carregamento inicial
   }, []);
 
-  const fetchPosts = async () => {
+  // Polling para atualizar posts periodicamente (a cada 10 segundos)
+  // Apenas quando a página está visível
+  useEffect(() => {
+    if (!session?.user) return;
+
+    let interval: NodeJS.Timeout | null = null;
+
+    const startPolling = () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+      interval = setInterval(() => {
+        fetchPosts(false); // Polling, não é carregamento inicial
+      }, 10000); // 10 segundos
+    };
+
+    const stopPolling = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        // Quando a página fica visível, começar polling
+        startPolling();
+      } else {
+        // Quando a página fica oculta, parar polling
+        stopPolling();
+      }
+    };
+
+    // Iniciar polling se a página estiver visível
+    if (document.visibilityState === "visible") {
+      startPolling();
+    }
+
+    // Escutar mudanças de visibilidade
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [session]);
+
+  const fetchPosts = async (isInitialLoad = false) => {
     try {
       const response = await fetch("/api/posts");
       const data = await response.json();
@@ -106,12 +153,40 @@ export default function MainFeed() {
       if (response.ok) {
         setPosts(data.posts);
       } else {
-        toast.error("Erro ao carregar posts");
+        // Só mostrar erro no carregamento inicial
+        if (isInitialLoad) {
+          toast.error("Erro ao carregar posts");
+        }
       }
     } catch (error) {
-      toast.error("Erro ao carregar posts");
+      console.error("Error fetching posts:", error);
+      // Só mostrar toast de erro no carregamento inicial
+      if (isInitialLoad) {
+        toast.error("Erro ao carregar posts");
+      }
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Buscar dados atualizados de um post específico
+  const fetchPostData = async (postId: string) => {
+    try {
+      const response = await fetch(`/api/posts/${postId}`);
+      const data = await response.json();
+
+      if (response.ok && data.post) {
+        const updatedPost = data.post;
+        setPosts((prevPosts) =>
+          prevPosts.map((post) =>
+            post._id === postId ? { ...post, ...updatedPost } : post
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching post data:", error);
     }
   };
 
@@ -151,6 +226,22 @@ export default function MainFeed() {
     }
   };
 
+  const handleReaction = async (
+    postId: string,
+    reactionType: ReactionType | null
+  ) => {
+    // Buscar dados atualizados do post após a reação
+    // Usar um pequeno delay para garantir que o backend processou
+    setTimeout(() => {
+      fetchPostData(postId);
+    }, 300);
+
+    // Também atualizar após mais tempo para pegar reações de outros usuários
+    setTimeout(() => {
+      fetchPostData(postId);
+    }, 2000);
+  };
+
   const handleLike = async (postId: string) => {
     try {
       const response = await fetch(`/api/posts/${postId}/like`, {
@@ -163,21 +254,10 @@ export default function MainFeed() {
       const data = await response.json();
 
       if (response.ok) {
-        // Atualizar o estado local dos posts
-        setPosts((prevPosts) =>
-          prevPosts.map((post) =>
-            post._id === postId
-              ? {
-                  ...post,
-                  likes: data.isLiked
-                    ? [...post.likes, session?.user?.id || "current-user"] // Adicionar like
-                    : post.likes.filter(
-                        (like) => like !== (session?.user?.id || "current-user")
-                      ), // Remover like
-                }
-              : post
-          )
-        );
+        // Buscar dados atualizados do post
+        setTimeout(() => {
+          fetchPostData(postId);
+        }, 500);
       } else {
         toast.error(data.error || "Erro ao curtir post");
       }
@@ -251,7 +331,9 @@ export default function MainFeed() {
                   createdAt: post.createdAt,
                   authorId: post.authorId,
                   companyId: post.companyId,
+                  isSuggestion: post.isSuggestion,
                 }}
+                onReaction={handleReaction}
                 onLike={handleLike}
                 onDelete={handleDeletePost}
               />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ interface Comment {
       firstName: string;
       lastName: string;
       photoUrl?: string;
+      slug?: string;
     };
   };
   reactionsCount?: {
@@ -42,6 +43,9 @@ interface CommentItemProps {
   onReplyAdded?: () => void;
   onReplyClick?: (commentId: string, authorName: string) => void;
   isReply?: boolean;
+  replyingTo?: { commentId: string; authorName: string } | null;
+  onCancelReply?: () => void;
+  forceShowReplies?: boolean;
 }
 
 const REPLIES_LIMIT = 5;
@@ -52,16 +56,31 @@ export default function CommentItem({
   onReplyAdded,
   onReplyClick,
   isReply = false,
+  replyingTo,
+  onCancelReply,
+  forceShowReplies = false,
 }: CommentItemProps) {
   const { data: session } = useSession();
   const [showAllReplies, setShowAllReplies] = useState(false);
-  const [showReplies, setShowReplies] = useState(false); // Estado para controlar visibilidade de respostas
   const [localReplies, setLocalReplies] = useState<Comment[]>(() => {
-    // Inicializar com respostas válidas filtradas
     if (comment.replies && Array.isArray(comment.replies)) {
       return comment.replies.filter((reply) => reply && reply._id);
     }
     return [];
+  });
+  
+  // Calcular se deve mostrar respostas inicialmente
+  // Se forceShowReplies é true, SEMPRE inicializar como true (mesmo que não haja respostas ainda)
+  // OU se há respostas e está sendo respondido
+  const hasRepliesInitially = comment.replies && Array.isArray(comment.replies) && comment.replies.filter((r) => r && r._id).length > 0;
+  const shouldShowInitially = forceShowReplies || (hasRepliesInitially && replyingTo?.commentId === comment._id);
+  const [showReplies, setShowReplies] = useState(() => {
+    // Se forceShowReplies é true, sempre inicializar como true
+    if (forceShowReplies) {
+      return true;
+    }
+    // Caso contrário, usar a lógica normal
+    return shouldShowInitially;
   });
   const [currentReaction, setCurrentReaction] = useState<ReactionType | null>(
     comment.currentReaction || null
@@ -76,6 +95,20 @@ export default function CommentItem({
       love: 0,
     }
   );
+  const isReplyingToThis = replyingTo?.commentId === comment._id;
+  
+  // Ref para armazenar os IDs das respostas anteriores (para detectar novas respostas)
+  const getInitialReplyIds = (): Set<string> => {
+    if (comment.replies && Array.isArray(comment.replies)) {
+      return new Set(
+        comment.replies
+          .filter((reply) => reply && reply._id)
+          .map((reply) => reply._id)
+      );
+    }
+    return new Set();
+  };
+  const previousReplyIdsRef = useRef<Set<string>>(getInitialReplyIds());
 
   // Atualizar localReplies quando comment.replies mudar
   useEffect(() => {
@@ -85,7 +118,40 @@ export default function CommentItem({
     } else {
       setLocalReplies([]);
     }
-  }, [comment.replies, comment._id]);
+  }, [comment.replies]);
+
+  // Efeito CRÍTICO: sempre que forceShowReplies for true, FORÇAR showReplies para true
+  // Isso garante que as respostas sejam exibidas mesmo após recarregar os comentários
+  useEffect(() => {
+    if (forceShowReplies) {
+      setShowReplies(true);
+    }
+  }, [forceShowReplies]);
+  
+  // Efeito: quando comment.replies muda e há respostas, garantir que showReplies seja true se forceShowReplies for true
+  useEffect(() => {
+    if (forceShowReplies && comment.replies && comment.replies.length > 0) {
+      setShowReplies(true);
+    }
+  }, [forceShowReplies, comment.replies]);
+
+  // Efeito: mostrar respostas quando está sendo respondido
+  useEffect(() => {
+    if (isReplyingToThis && localReplies.length > 0) {
+      setShowReplies(true);
+    }
+  }, [isReplyingToThis, localReplies.length]);
+
+  // Efeito: atualizar ref de IDs quando comentários mudarem
+  useEffect(() => {
+    if (comment.replies) {
+      const filtered = comment.replies.filter((reply) => reply && reply._id);
+      const currentIds = new Set(filtered.map((reply) => reply._id));
+      previousReplyIdsRef.current = currentIds;
+    } else {
+      previousReplyIdsRef.current = new Set();
+    }
+  }, [comment.replies]);
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -119,18 +185,16 @@ export default function CommentItem({
     let match;
 
     while ((match = mentionRegex.exec(content)) !== null) {
-      // Adicionar texto antes da menção
       if (match.index > lastIndex) {
         parts.push(content.substring(lastIndex, match.index));
       }
 
-      // Adicionar link da menção
       const mentionName = match[1];
       parts.push(
         <Link
           key={`mention-${match.index}`}
           href={`/jobboard/${mentionName.toLowerCase()}`}
-          className="text-blue-600 hover:underline"
+          className="text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors"
         >
           @{mentionName}
         </Link>
@@ -139,7 +203,6 @@ export default function CommentItem({
       lastIndex = match.index + match[0].length;
     }
 
-    // Adicionar texto restante
     if (lastIndex < content.length) {
       parts.push(content.substring(lastIndex));
     }
@@ -189,8 +252,14 @@ export default function CommentItem({
     }
   };
 
-  // Filtrar respostas válidas
-  const validReplies = localReplies.filter((reply) => reply && reply._id);
+  // Filtrar respostas válidas - SEMPRE usar comment.replies primeiro (dados mais atualizados)
+  // Se comment.replies não estiver disponível, usar localReplies como fallback
+  const repliesToDisplay = comment.replies && Array.isArray(comment.replies)
+    ? comment.replies.filter((reply) => reply && reply._id)
+    : (localReplies && Array.isArray(localReplies) 
+        ? localReplies.filter((reply) => reply && reply._id)
+        : []);
+  const validReplies = repliesToDisplay;
   const totalReplies = validReplies.length;
 
   // Determinar quais respostas mostrar
@@ -200,39 +269,58 @@ export default function CommentItem({
 
   const hasMoreReplies = totalReplies > REPLIES_LIMIT;
 
+  const authorAvatarUrl = authorAvatar();
+  const authorNameStr = authorName();
+  const authorSlug = comment.authorId.profile?.slug;
+  const authorInitials = authorNameStr
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .substring(0, 2);
+
   return (
-    <div className={isReply ? "mt-3 relative pl-8" : ""}>
-      {/* Linha vertical apenas para respostas - mesma posição para todos os níveis */}
+    <div
+      className={`${isReply ? "mt-3 relative pl-8" : ""} ${
+        isReplyingToThis
+          ? "bg-blue-50 border-l-4 border-blue-500 pl-3 -ml-4 rounded-r transition-colors duration-200"
+          : ""
+      }`}
+    >
+      {/* Linha vertical apenas para respostas */}
       {isReply && (
         <div className="absolute -left-8 top-0 bottom-0 w-0.5 bg-gray-300"></div>
       )}
-      {/* Todos os comentários secundários/terceirizados usam mesma indentação fixa */}
+
       <div className="flex gap-3">
         {/* Avatar */}
-        <Avatar className="w-10 h-10 flex-shrink-0">
+        <Avatar className="w-8 h-8 shrink-0">
           <AvatarImage
-            src={authorAvatar() || "/placeholder/userplaceholder.svg"}
-            alt={authorName()}
+            src={authorAvatarUrl || "/placeholder/userplaceholder.svg"}
+            alt={authorNameStr}
           />
           <AvatarFallback className="bg-black text-white text-xs">
-            {authorName()
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .toUpperCase()
-              .substring(0, 2)}
+            {authorInitials}
           </AvatarFallback>
         </Avatar>
 
         {/* Conteúdo */}
-        <div className="flex-1 min-w-0 overflow-visible">
+        <div className="flex-1 min-w-0">
           {/* Header: Nome, Seguidores, Timestamp, Menu */}
           <div className="flex items-start justify-between mb-1">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <h4 className="font-semibold text-sm text-black leading-tight truncate">
-                  {authorName()}
-                </h4>
+                {authorSlug ? (
+                  <Link href={`/jobboard/${authorSlug}`}>
+                    <h4 className="font-semibold text-sm text-blue-600 hover:underline leading-tight truncate cursor-pointer">
+                      {authorNameStr}
+                    </h4>
+                  </Link>
+                ) : (
+                  <h4 className="font-semibold text-sm text-black leading-tight truncate">
+                    {authorNameStr}
+                  </h4>
+                )}
               </div>
               {comment.followersCount !== undefined && (
                 <p className="text-xs text-black leading-tight">
@@ -240,7 +328,7 @@ export default function CommentItem({
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs text-black">
                 {formatTimeAgo(comment.createdAt)}
               </span>
@@ -258,6 +346,65 @@ export default function CommentItem({
             {renderContentWithMentions(comment.content)}
           </p>
 
+          {/* Engagement Stats - Reações */}
+          {(() => {
+            const activeReactions = [
+              { type: "like" as const, count: reactionsCount.like },
+              { type: "love" as const, count: reactionsCount.love },
+              { type: "celebrate" as const, count: reactionsCount.celebrate },
+            ].filter((r) => r.count > 0);
+
+            const totalReactions = activeReactions.reduce(
+              (sum, r) => sum + r.count,
+              0
+            );
+
+            if (totalReactions > 0) {
+              return (
+                <div className="flex items-center gap-2 mb-2">
+                  {/* Ícones de reação sobrepostos */}
+                  <div className="flex items-center -space-x-2">
+                    {activeReactions.map((reaction, index) => {
+                      const iconMap = {
+                        like: "/images/icons/like.svg",
+                        love: "/images/icons/amei.svg",
+                        celebrate: "/images/icons/parabens.svg",
+                      };
+                      const bgColorMap = {
+                        like: "#378fe9",
+                        love: "#df704d",
+                        celebrate: "#6dae4f",
+                      };
+
+                      return (
+                        <div
+                          key={`reaction-${reaction.type}`}
+                          className="w-5 h-5 rounded-full flex items-center justify-center border-2 border-white relative"
+                          style={{
+                            backgroundColor: bgColorMap[reaction.type],
+                            zIndex: activeReactions.length - index,
+                          }}
+                        >
+                          <img
+                            src={iconMap[reaction.type]}
+                            alt={reaction.type}
+                            className="w-3 h-3"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Contagem total */}
+                  <span className="text-black font-normal text-xs">
+                    {totalReactions}
+                  </span>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
           {/* Botões de ação: Gostei e Responder */}
           <div className="flex items-center gap-1 mt-2">
             <ReactionButton
@@ -271,42 +418,45 @@ export default function CommentItem({
                 handleReaction(commentId, reactionType);
               }}
             />
-            <div className="h-4 w-px bg-black"></div>
+            <div className="h-4 w-px bg-gray-300"></div>
             <button
               onClick={handleReplyClick}
               className="text-xs text-black hover:text-black font-medium"
+              aria-label={`Responder a ${authorNameStr}`}
             >
               Responder
             </button>
           </div>
 
           {/* Respostas aninhadas */}
-          {!isReply && totalReplies > 0 && (
+          {!isReply && (totalReplies > 0 || forceShowReplies) && (
             <>
-              {/* Separador com contador de respostas */}
-              <div className="mt-3 mb-2">
-                <button
-                  onClick={() => {
-                    setShowReplies(!showReplies);
-                    if (!showReplies) {
-                      setShowAllReplies(false); // Resetar para mostrar apenas 5 inicialmente
-                    }
-                  }}
-                  className="text-xs text-gray-600 hover:text-gray-800 font-medium flex items-center gap-1 w-full"
-                >
-                  <span className="h-px bg-gray-300 flex-1"></span>
-                  <span className="px-2 whitespace-nowrap">
-                    Ver todos os comentários {totalReplies}{" "}
-                    {totalReplies === 1 ? "resposta" : "respostas"}
-                  </span>
-                  <span className="h-px bg-gray-300 flex-1"></span>
-                </button>
-              </div>
+              {/* Separador com contador de respostas - só mostrar se houver respostas */}
+              {totalReplies > 0 && (
+                <div className="mt-3 mb-2">
+                  <button
+                    onClick={() => {
+                      setShowReplies(!showReplies);
+                      if (!showReplies) {
+                        setShowAllReplies(false);
+                      }
+                    }}
+                    className="text-xs text-gray-600 hover:text-gray-800 font-medium flex items-center gap-1 w-full"
+                    aria-label={`${showReplies ? "Ocultar" : "Ver"} ${totalReplies} ${totalReplies === 1 ? "resposta" : "respostas"}`}
+                  >
+                    <span className="h-px bg-gray-300 flex-1"></span>
+                    <span className="px-2 whitespace-nowrap">
+                      {showReplies ? "Ocultar" : "Ver"} {totalReplies}{" "}
+                      {totalReplies === 1 ? "resposta" : "respostas"}
+                    </span>
+                    <span className="h-px bg-gray-300 flex-1"></span>
+                  </button>
+                </div>
+              )}
 
-              {/* Container de respostas - só mostra se showReplies for true */}
-              {showReplies && (
+              {/* Container de respostas - mostrar se showReplies é true E há respostas */}
+              {showReplies && totalReplies > 0 && (
                 <div className="mt-2">
-                  {/* Lista de respostas - todas com mesma indentação fixa (pl-8 já aplicado no wrapper principal) */}
                   <div className="space-y-3">
                     {displayedReplies.map((reply) => (
                       <CommentItem
@@ -314,7 +464,10 @@ export default function CommentItem({
                         comment={reply}
                         postId={postId}
                         onReplyAdded={onReplyAdded}
+                        onReplyClick={onReplyClick}
                         isReply={true}
+                        replyingTo={replyingTo}
+                        onCancelReply={onCancelReply}
                       />
                     ))}
                   </div>
@@ -325,6 +478,7 @@ export default function CommentItem({
                       <button
                         onClick={() => setShowAllReplies(!showAllReplies)}
                         className="text-xs text-gray-600 hover:text-gray-800 font-medium"
+                        aria-label={showAllReplies ? "Ver menos respostas" : `Ver mais ${totalReplies - REPLIES_LIMIT} respostas`}
                       >
                         {showAllReplies
                           ? "Ver menos"
@@ -341,14 +495,14 @@ export default function CommentItem({
             </>
           )}
 
-          {/* Respostas aninhadas para replies - SEM indentação adicional para evitar escada */}
+          {/* Respostas aninhadas para replies */}
           {isReply && totalReplies > 0 && (
             <>
-              {/* Botão para mostrar respostas */}
               <div className="mt-2">
                 <button
                   onClick={() => setShowReplies(!showReplies)}
                   className="text-xs text-gray-600 hover:text-gray-800 font-medium"
+                  aria-label={`${showReplies ? "Ocultar" : "Ver"} ${totalReplies} ${totalReplies === 1 ? "resposta" : "respostas"}`}
                 >
                   {showReplies
                     ? `Ocultar ${totalReplies} ${
@@ -360,7 +514,6 @@ export default function CommentItem({
                 </button>
               </div>
 
-              {/* Container de respostas - SEM pl-8 adicional para manter mesmo eixo (já estamos dentro de uma resposta) */}
               {showReplies && (
                 <div className="mt-3">
                   <div className="space-y-3">
@@ -370,7 +523,10 @@ export default function CommentItem({
                         comment={reply}
                         postId={postId}
                         onReplyAdded={onReplyAdded}
+                        onReplyClick={onReplyClick}
                         isReply={true}
+                        replyingTo={replyingTo}
+                        onCancelReply={onCancelReply}
                       />
                     ))}
                   </div>

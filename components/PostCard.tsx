@@ -684,33 +684,33 @@ export default function PostCard({
           />
           <button
             onClick={() => setShowComments(!showComments)}
-            className="flex items-center justify-center gap-1 md:gap-2 text-[10px] md:text-xs font-medium rounded-md transition-colors duration-150 hover:bg-gray-100 px-2 py-1.5 md:px-4 md:py-2 flex-1 text-black hover:text-black"
+            className="flex items-center justify-center gap-1 md:gap-2 text-[13px] md:text-xs font-medium rounded-md transition-colors duration-150 hover:bg-gray-100 px-2 py-1.5 md:px-4 md:py-2 flex-1 text-black hover:text-black"
           >
             <LinkedInIcon
               id="comment-small"
-              size={12}
+              size={13}
               className="md:!w-4 md:!h-4"
             />
             <span>Comentar</span>
           </button>
           <button
             onClick={() => setShowShareModal(true)}
-            className="flex items-center justify-center gap-1 md:gap-2 text-[10px] md:text-xs font-medium rounded-md transition-colors duration-150 hover:bg-gray-100 px-2 py-1.5 md:px-4 md:py-2 flex-1 text-black hover:text-black"
+            className="flex items-center justify-center gap-1 md:gap-2 text-[13px] md:text-xs font-medium rounded-md transition-colors duration-150 hover:bg-gray-100 px-2 py-1.5 md:px-4 md:py-2 flex-1 text-black hover:text-black"
           >
             <LinkedInIcon
               id="repost-small"
-              size={12}
+              size={13}
               className="md:!w-4 md:!h-4"
             />
             <span>Compartilhar</span>
           </button>
           <button
             onClick={() => setShowSendMessage(true)}
-            className="flex items-center justify-center gap-1 md:gap-2 text-[10px] md:text-xs font-medium rounded-md transition-colors duration-150 hover:bg-gray-100 px-2 py-1.5 md:px-4 md:py-2 flex-1 text-black hover:text-black"
+            className="flex items-center justify-center gap-1 md:gap-2 text-[13px] md:text-xs font-medium rounded-md transition-colors duration-150 hover:bg-gray-100 px-2 py-1.5 md:px-4 md:py-2 flex-1 text-black hover:text-black"
           >
             <LinkedInIcon
               id="send-privately-small"
-              size={12}
+              size={13}
               className="md:!w-4 md:!h-4"
             />
             <span>Enviar</span>

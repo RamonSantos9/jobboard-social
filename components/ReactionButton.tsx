@@ -133,7 +133,7 @@ export default function ReactionButton({
       return (
         <LinkedInIcon
           id="thumbs-up-outline-small"
-          size={12}
+          size={14}
           className="text-black md:!w-4 md:!h-4"
         />
       );
@@ -146,8 +146,8 @@ export default function ReactionButton({
           <Image
             src="/images/icons/like.svg"
             alt="Curtir"
-            width={12}
-            height={12}
+            width={14}
+            height={14}
             className="md:w-5 md:h-5"
           />
         );
@@ -156,8 +156,8 @@ export default function ReactionButton({
           <Image
             src="/images/icons/amei.svg"
             alt="Amei"
-            width={12}
-            height={12}
+            width={14}
+            height={14}
             className="md:w-5 md:h-5"
           />
         );
@@ -166,8 +166,8 @@ export default function ReactionButton({
           <Image
             src="/images/icons/parabens.svg"
             alt="Parabéns"
-            width={12}
-            height={12}
+            width={14}
+            height={14}
             className="md:w-5 md:h-5"
           />
         );
@@ -175,7 +175,7 @@ export default function ReactionButton({
         return (
           <LinkedInIcon
             id="thumbs-up-outline-small"
-            size={12}
+            size={14}
             className="text-black md:!w-4 md:!h-4"
           />
         );
@@ -193,7 +193,7 @@ export default function ReactionButton({
         onClick={handleClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className={`flex items-center justify-center gap-1 md:gap-2 text-[10px] md:text-xs font-medium px-2 py-1.5 md:px-4 md:py-2 flex-1 relative ${textColor} hover:${textColor}`}
+        className={`flex items-center justify-center gap-1 md:gap-2 text-[13px] md:text-xs font-medium px-2 py-1.5 md:px-4 md:py-2 flex-1 relative ${textColor} hover:${textColor}`}
         style={{
           color: currentReaction
             ? reactionColors[currentReaction as "like" | "love" | "celebrate"]

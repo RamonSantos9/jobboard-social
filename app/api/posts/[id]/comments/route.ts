@@ -29,7 +29,7 @@ export async function GET(
         populate: {
           path: "profile",
           model: "Profile",
-          select: "firstName lastName photoUrl connections",
+          select: "firstName lastName photoUrl connections slug",
         },
       })
       .sort({ createdAt: -1 })
@@ -48,18 +48,24 @@ export async function GET(
         }
 
         // Buscar respostas
-        const replies = await Comment.find({ parentCommentId: comment._id })
+        // Mongoose converte automaticamente strings para ObjectId na query
+        const replies = await Comment.find({ 
+          parentCommentId: comment._id,
+          postId: id // Garantir que a resposta pertence ao mesmo post
+        })
           .populate("authorId", "name email")
           .populate({
             path: "authorId",
             populate: {
               path: "profile",
               model: "Profile",
-              select: "firstName lastName photoUrl connections",
+              select: "firstName lastName photoUrl connections slug",
             },
           })
           .sort({ createdAt: 1 })
           .lean();
+        
+        console.log(`Comentário ${comment._id}: Buscando respostas com parentCommentId=${comment._id}, encontradas ${replies.length} resposta(s)`);
 
         // Buscar perfil do autor para seguidores
         const profile = await Profile.findOne({
@@ -168,6 +174,11 @@ export async function GET(
         const filteredReplies = processedReplies.filter(
           (reply) => reply !== null
         );
+        
+        // Debug: log quando há respostas
+        if (filteredReplies.length > 0) {
+          console.log(`Comentário ${comment._id}: retornando ${filteredReplies.length} resposta(s) processada(s)`);
+        }
 
         return {
           ...comment,
@@ -240,39 +251,58 @@ export async function POST(
           { status: 404 }
         );
       }
-
-      // Adicionar reply ao comentário pai
-      await Comment.findByIdAndUpdate(parentCommentId, {
-        $addToSet: { replies: null }, // Será atualizado após criar o comentário
-      });
     }
 
     // Criar comentário
+    // Converter parentCommentId para ObjectId se fornecido
+    let parentId = null;
+    if (parentCommentId) {
+      try {
+        parentId = typeof parentCommentId === 'string' 
+          ? new mongoose.Types.ObjectId(parentCommentId)
+          : parentCommentId;
+      } catch (error) {
+        console.error("Erro ao converter parentCommentId para ObjectId:", error);
+        return NextResponse.json(
+          { error: "ID do comentário pai inválido" },
+          { status: 400 }
+        );
+      }
+    }
+    
     const comment = new Comment({
       postId: id,
       authorId: session.user.id,
       content: content.trim(),
-      parentCommentId: parentCommentId || null,
+      parentCommentId: parentId,
     });
 
     await comment.save();
+    console.log(`Comentário criado: ID=${comment._id}, parentCommentId=${parentId}, postId=${id}, content="${content.trim().substring(0, 50)}..."`);
 
     // Se for uma resposta, atualizar o array de replies do comentário pai
-    if (parentCommentId) {
-      await Comment.findByIdAndUpdate(parentCommentId, {
-        $addToSet: { replies: comment._id },
-      });
+    // NOTA: Isso é opcional, pois buscamos respostas por parentCommentId na query GET
+    if (parentId) {
+      try {
+        await Comment.findByIdAndUpdate(parentId, {
+          $addToSet: { replies: comment._id },
+        });
+        console.log(`Array de replies atualizado para comentário pai: ${parentId}`);
+      } catch (error) {
+        console.error("Erro ao atualizar array de replies do comentário pai:", error);
+        // Não falhar a criação da resposta se isso der erro
+      }
     }
 
     // Atualizar contador de comentários do post (apenas para comentários principais)
-    if (!parentCommentId) {
+    if (!parentId) {
       await Post.findByIdAndUpdate(id, {
         $inc: { commentsCount: 1 },
       });
     }
 
     // Se for uma resposta, buscar e retornar dados completos da reply
-    if (parentCommentId) {
+    if (parentId) {
       // Buscar reply com dados completos
       const reply = await Comment.findById(comment._id)
         .populate("authorId", "name email")
@@ -281,7 +311,7 @@ export async function POST(
           populate: {
             path: "profile",
             model: "Profile",
-            select: "firstName lastName photoUrl connections",
+            select: "firstName lastName photoUrl connections slug",
           },
         })
         .lean();

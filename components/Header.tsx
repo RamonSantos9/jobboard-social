@@ -52,7 +52,11 @@ export default function Header({ sticky = true }: HeaderProps) {
     { href: "/network", iconId: "group-small", label: "Minha rede" },
     { href: "/jobs", iconId: "connect-small", label: "Vagas" },
     { href: "/messages", iconId: "send-privately-small", label: "Mensagens" },
-    { href: "/notifications", iconId: "signal-notice-small", label: "Notificações" },
+    {
+      href: "/notifications",
+      iconId: "signal-notice-small",
+      label: "Notificações",
+    },
   ];
 
   return (
@@ -91,7 +95,7 @@ export default function Header({ sticky = true }: HeaderProps) {
                   className="opacity-80 group-hover:opacity-100 transition"
                 />
                 {item.label === "Notificações" && unreadNotifications > 0 && (
-                  <span className="absolute -top-1 -right-2 bg-red-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-2 bg-red-600 text-white text-[14px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                     {unreadNotifications}
                   </span>
                 )}
@@ -132,7 +136,9 @@ export default function Header({ sticky = true }: HeaderProps) {
               <button className="flex flex-col items-center text-xs font-medium hover:text-black">
                 <Avatar className="w-7 h-7 border border-gray-200 rounded-full">
                   <AvatarImage
-                    src={profile?.photoUrl || "/placeholder/userplaceholder.svg"}
+                    src={
+                      profile?.photoUrl || "/placeholder/userplaceholder.svg"
+                    }
                   />
                   <AvatarFallback>
                     {profile?.firstName?.[0]}
@@ -201,13 +207,9 @@ export default function Header({ sticky = true }: HeaderProps) {
         <nav className="flex items-center justify-center gap-6 text-gray-600">
           {navItems.map((item) => (
             <Link key={item.href} href={item.href} className="relative">
-              <LinkedInIcon
-                id={item.iconId}
-                size={20}
-                className="opacity-80"
-              />
+              <LinkedInIcon id={item.iconId} size={20} className="opacity-80" />
               {item.label === "Notificações" && unreadNotifications > 0 && (
-                <span className="absolute -top-1 -right-2 bg-red-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                <span className="absolute -top-1 -right-2 bg-red-600 text-white text-[13px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                   {unreadNotifications}
                 </span>
               )}
