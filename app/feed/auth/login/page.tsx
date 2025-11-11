@@ -22,6 +22,27 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // Primeiro, verificar credenciais com nossa API route para obter mensagens de erro detalhadas
+      const checkResponse = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const checkData = await checkResponse.json();
+
+      // Se houver erro na verificação, exibir mensagem detalhada e não prosseguir
+      if (!checkResponse.ok || checkData.error) {
+        toast.error(checkData.message || "Erro ao fazer login", {
+          duration: 5000,
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Se as credenciais são válidas, prosseguir com o NextAuth para criar a sessão
       const result = await signIn("credentials", {
         email,
         password,
@@ -29,15 +50,23 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        toast.error("Email ou senha inválidos");
-      } else {
-        toast.success("Login realizado com sucesso!");
+        // Se houver erro no NextAuth após verificação bem-sucedida, é um erro interno
+        toast.error("Erro ao processar autenticação. Tente novamente.", {
+          duration: 5000,
+        });
+      } else if (result?.ok) {
+        toast.success("Login realizado com sucesso!", {
+          duration: 3000,
+        });
         // Redirecionar para callbackUrl se existir, senão para /feed
         const callbackUrl = searchParams.get("callbackUrl") || "/feed";
         router.push(callbackUrl);
       }
-    } catch (error) {
-      toast.error("Erro ao fazer login");
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast.error("Erro ao fazer login. Tente novamente mais tarde.", {
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }
