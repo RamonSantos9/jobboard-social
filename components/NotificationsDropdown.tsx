@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -54,6 +55,7 @@ interface NotificationsDropdownProps {
 export default function NotificationsDropdown({
   unreadCount = 0,
 }: NotificationsDropdownProps) {
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -138,7 +140,7 @@ export default function NotificationsDropdown({
           toast.success("Convite aceito com sucesso!");
           // Redirecionar para página da empresa
           setTimeout(() => {
-            window.location.href = `/company/${data.companyId}`;
+            router.push(`/company/${data.companyId}`);
           }, 1500);
         } else {
           toast.info("Convite recusado");

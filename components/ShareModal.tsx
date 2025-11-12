@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import LinkedInIcon from "./LinkedInIcon";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { getUrl } from "@/lib/get-origin";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -53,7 +54,8 @@ export default function ShareModal({ isOpen, onClose, post }: ShareModalProps) {
 
   const handleCopyLink = async () => {
     try {
-      const link = `${window.location.origin}/posts/${post._id}`;
+      if (typeof window === "undefined") return;
+      const link = getUrl(`/posts/${post._id}`);
       await navigator.clipboard.writeText(link);
       toast.success("Link copiado para a área de transferência!");
       onClose();
@@ -64,7 +66,8 @@ export default function ShareModal({ isOpen, onClose, post }: ShareModalProps) {
 
   const handleExternalShare = async () => {
     try {
-      const link = `${window.location.origin}/posts/${post._id}`;
+      if (typeof window === "undefined") return;
+      const link = getUrl(`/posts/${post._id}`);
       const text = post.content
         ? `${post.content.substring(0, 100)}...`
         : "Confira este post";

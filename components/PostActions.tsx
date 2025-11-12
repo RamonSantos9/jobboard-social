@@ -24,6 +24,7 @@ import {
   Eye,
 } from "lucide-react";
 import { toast } from "sonner";
+import { getUrl } from "@/lib/get-origin";
 
 interface PostActionsProps {
   postId: string;
@@ -129,7 +130,8 @@ export default function PostActions({
   };
 
   const handleCopyLink = () => {
-    const postUrl = `${window.location.origin}/posts/${postId}`;
+    if (typeof window === "undefined") return;
+    const postUrl = getUrl(`/posts/${postId}`);
     navigator.clipboard.writeText(postUrl);
     toast.success("Link copiado para a área de transferência!");
     onCopyLink?.();

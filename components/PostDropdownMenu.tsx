@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { getUrl } from "@/lib/get-origin";
 
 interface PostDropdownMenuProps {
   postId: string;
@@ -86,7 +87,8 @@ export default function PostDropdownMenu({
     async (e: React.MouseEvent) => {
       e.stopPropagation();
       try {
-        const url = `${window.location.origin}/feed/post/${postId}`;
+        if (typeof window === "undefined") return;
+        const url = getUrl(`/feed/post/${postId}`);
         await navigator.clipboard.writeText(url);
         toast.success("Link copiado!");
         onClose();
@@ -101,7 +103,8 @@ export default function PostDropdownMenu({
   const handleEmbed = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      const embedCode = `<iframe src="${window.location.origin}/feed/post/${postId}" width="600" height="400" frameborder="0"></iframe>`;
+      if (typeof window === "undefined") return;
+      const embedCode = `<iframe src="${getUrl(`/feed/post/${postId}`)}" width="600" height="400" frameborder="0"></iframe>`;
       navigator.clipboard.writeText(embedCode).then(() => {
         toast.success("Código de incorporação copiado!");
       }).catch(() => {
