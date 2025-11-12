@@ -26,16 +26,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await connectDB();
+    console.log("Iniciando conexão com banco de dados...");
+    try {
+      await connectDB();
+      console.log("Conexão com banco de dados estabelecida");
+    } catch (dbError: any) {
+      console.error("Erro ao conectar com banco de dados:", dbError);
+      return NextResponse.json(
+        {
+          error: "DATABASE_CONNECTION_ERROR",
+          message: "Erro de conexão com o servidor. Tente novamente mais tarde.",
+        },
+        { status: 500 }
+      );
+    }
+
+    // Verificar se os modelos estão disponíveis
+    if (!UserModel || !CompanyModel) {
+      console.error("Modelos não estão disponíveis:", { UserModel: !!UserModel, CompanyModel: !!CompanyModel });
+      return NextResponse.json(
+        {
+          error: "MODEL_ERROR",
+          message: "Erro interno do servidor. Entre em contato com o suporte.",
+        },
+        { status: 500 }
+      );
+    }
 
     // Normalizar email
     const normalizedEmail = email.toLowerCase().trim();
+    console.log("Buscando usuário e empresa para email:", normalizedEmail);
 
     // Buscar usuário e empresa em paralelo
-    const [user, company] = await Promise.all([
-      UserModel.findOne({ email: normalizedEmail }),
-      CompanyModel.findOne({ email: normalizedEmail }),
-    ]);
+    let user, company;
+    try {
+      [user, company] = await Promise.all([
+        UserModel.findOne({ email: normalizedEmail }),
+        CompanyModel.findOne({ email: normalizedEmail }),
+      ]);
+      console.log("Busca concluída - User encontrado:", !!user, "Company encontrada:", !!company);
+    } catch (findError: any) {
+      console.error("Erro ao buscar usuário/empresa:", {
+        message: findError?.message,
+        stack: findError?.stack,
+        name: findError?.name,
+      });
+      return NextResponse.json(
+        {
+          error: "DATABASE_QUERY_ERROR",
+          message: "Erro ao buscar dados. Tente novamente mais tarde.",
+        },
+        { status: 500 }
+      );
+    }
 
     // Se encontrou usuário
     if (user) {
@@ -71,8 +114,47 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Verificar se o usuário tem senha
+      if (!user.password) {
+        console.error("Usuário não tem senha definida");
+        return NextResponse.json(
+          {
+            error: "AUTH_ERROR",
+            message: "Erro interno ao verificar senha. Tente novamente mais tarde.",
+          },
+          { status: 500 }
+        );
+      }
+
       // Verificar senha
-      const isPasswordValid = await user.comparePassword(password);
+      let isPasswordValid;
+      try {
+        if (typeof user.comparePassword !== "function") {
+          console.error("comparePassword não é uma função no modelo User");
+          return NextResponse.json(
+            {
+              error: "AUTH_ERROR",
+              message: "Erro interno ao verificar senha. Tente novamente mais tarde.",
+            },
+            { status: 500 }
+          );
+        }
+        isPasswordValid = await user.comparePassword(password);
+        console.log("Validação de senha concluída para usuário:", isPasswordValid);
+      } catch (passwordError: any) {
+        console.error("Erro ao verificar senha do usuário:", {
+          message: passwordError?.message,
+          stack: passwordError?.stack,
+          name: passwordError?.name,
+        });
+        return NextResponse.json(
+          {
+            error: "AUTH_ERROR",
+            message: "Erro ao verificar senha. Tente novamente mais tarde.",
+          },
+          { status: 500 }
+        );
+      }
 
       if (!isPasswordValid) {
         return NextResponse.json(
@@ -107,8 +189,47 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Verificar se a empresa tem senha
+      if (!company.password) {
+        console.error("Empresa não tem senha definida");
+        return NextResponse.json(
+          {
+            error: "AUTH_ERROR",
+            message: "Erro interno ao verificar senha. Tente novamente mais tarde.",
+          },
+          { status: 500 }
+        );
+      }
+
       // Verificar senha
-      const isPasswordValid = await company.comparePassword(password);
+      let isPasswordValid;
+      try {
+        if (typeof company.comparePassword !== "function") {
+          console.error("comparePassword não é uma função no modelo Company");
+          return NextResponse.json(
+            {
+              error: "AUTH_ERROR",
+              message: "Erro interno ao verificar senha. Tente novamente mais tarde.",
+            },
+            { status: 500 }
+          );
+        }
+        isPasswordValid = await company.comparePassword(password);
+        console.log("Validação de senha concluída para empresa:", isPasswordValid);
+      } catch (passwordError: any) {
+        console.error("Erro ao verificar senha da empresa:", {
+          message: passwordError?.message,
+          stack: passwordError?.stack,
+          name: passwordError?.name,
+        });
+        return NextResponse.json(
+          {
+            error: "AUTH_ERROR",
+            message: "Erro ao verificar senha. Tente novamente mais tarde.",
+          },
+          { status: 500 }
+        );
+      }
 
       if (!isPasswordValid) {
         return NextResponse.json(
@@ -139,7 +260,12 @@ export async function POST(request: NextRequest) {
       { status: 404 }
     );
   } catch (error: any) {
-    console.error("Login API error:", error);
+    console.error("Login API error - Detalhes completos:", {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+      error: error,
+    });
     
     // Verificar se é um erro de conexão com o banco de dados
     if (
@@ -147,7 +273,8 @@ export async function POST(request: NextRequest) {
       (error.message.includes("MongoServerError") ||
         error.message.includes("Mongoose") ||
         error.message.includes("connection") ||
-        error.message.includes("timeout"))
+        error.message.includes("timeout") ||
+        error.message.includes("MongoNetworkError"))
     ) {
       return NextResponse.json(
         {
@@ -158,10 +285,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verificar se é um erro de modelo não encontrado
+    if (
+      error instanceof Error &&
+      (error.message.includes("Model") || error.message.includes("is not a function"))
+    ) {
+      return NextResponse.json(
+        {
+          error: "MODEL_ERROR",
+          message: "Erro interno do servidor. Entre em contato com o suporte.",
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
       {
         error: "AUTH_ERROR",
-        message: "Erro ao processar login. Tente novamente mais tarde.",
+        message: error?.message || "Erro ao processar login. Tente novamente mais tarde.",
       },
       { status: 500 }
     );
