@@ -3,16 +3,18 @@ import mongoose from "mongoose";
 // Obter a URI do MongoDB das variáveis de ambiente
 const MONGODB_URI = process.env.MONGODB_URI;
 
+type MongooseCache = {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+};
+
 declare global {
-  var mongoose: {
-    conn: typeof mongoose | null;
-    promise: Promise<typeof mongoose> | null;
-  } | undefined;
+  var mongoose: MongooseCache | undefined;
 }
 
 // Cache da conexão para ambientes serverless
-let cached: { conn: typeof mongoose | null; promise: Promise<typeof mongoose> | null } = 
-  global.mongoose || { conn: null, promise: null };
+let cached: MongooseCache = 
+  global.mongoose ?? { conn: null, promise: null };
 
 if (!global.mongoose) {
   global.mongoose = cached;

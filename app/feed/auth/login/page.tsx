@@ -54,8 +54,13 @@ function LoginPageContent() {
           return;
         }
       } catch (fetchError: any) {
-        console.error("Erro ao verificar credenciais:", fetchError);
-        toast.error("Erro ao conectar com o servidor. Verifique sua conexão e tente novamente.", {
+        console.error("Erro ao verificar credenciais:", {
+          message: fetchError?.message,
+          name: fetchError?.name,
+          stack: fetchError?.stack,
+        });
+        const errorMessage = fetchError?.message || "Erro ao conectar com o servidor. Verifique sua conexão e tente novamente.";
+        toast.error(errorMessage, {
           duration: 5000,
         });
         setLoading(false);
