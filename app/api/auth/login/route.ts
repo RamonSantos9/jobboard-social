@@ -26,78 +26,89 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("Iniciando conexão com banco de dados...");
+    console.log("[Login API] Iniciando conexão com banco de dados...");
     
     try {
       await connectDB();
-      console.log("✅ Conexão com banco de dados estabelecida com sucesso");
+      console.log("[Login API] ✅ Conexão com banco de dados estabelecida com sucesso");
     } catch (dbError: any) {
-      console.error("❌ Erro ao conectar com banco de dados:", {
-        message: dbError?.message,
-        name: dbError?.name,
-        code: dbError?.code,
-        codeName: dbError?.codeName,
-        type: dbError?.details?.type,
-        originalError: dbError?.originalError?.message,
+      // Extrair detalhes do erro
+      const errorDetails = dbError?.details || {};
+      const errorType = errorDetails.type || "UNKNOWN_ERROR";
+      const errorMessage = errorDetails.message || dbError?.message || "Erro de conexão com o servidor. Tente novamente mais tarde.";
+      const errorSuggestion = errorDetails.suggestion || null;
+
+      console.error("[Login API] ❌ Erro ao conectar com banco de dados:", {
+        type: errorType,
+        message: errorMessage,
+        code: errorDetails.code || dbError?.code,
+        codeName: errorDetails.codeName || dbError?.codeName,
+        suggestion: errorSuggestion,
       });
 
-      // Usar a mensagem do erro melhorado se disponível
-      let errorMessage = dbError?.message || "Erro de conexão com o servidor. Tente novamente mais tarde.";
+      // Mapear código de erro baseado no tipo
       let errorCode = "DATABASE_CONNECTION_ERROR";
-      const errorType = dbError?.details?.type || dbError?.codeName;
-
-      // Mapear tipos de erro específicos
       switch (errorType) {
+        case "MISSING_URI":
+          errorCode = "DATABASE_CONFIG_ERROR";
+          break;
+        case "INVALID_URI":
+          errorCode = "DATABASE_CONFIG_ERROR";
+          break;
         case "HOST_NOT_FOUND":
-        case "ENOTFOUND":
-          errorMessage = "Não foi possível encontrar o servidor de banco de dados. Verifique se a URI do MongoDB está correta nas variáveis de ambiente.";
           errorCode = "DATABASE_HOST_ERROR";
           break;
         case "AUTH_FAILED":
-        case 18:
-          errorMessage = "Falha na autenticação do banco de dados. Verifique se as credenciais do MongoDB estão corretas.";
           errorCode = "DATABASE_AUTH_ERROR";
           break;
         case "TIMEOUT":
-        case "ETIMEDOUT":
         case "SERVER_SELECTION_TIMEOUT":
-          errorMessage = "Tempo de conexão com o banco de dados expirou. Verifique se o IP do servidor está na whitelist do MongoDB Atlas e se a conexão de rede está funcionando.";
           errorCode = "DATABASE_TIMEOUT_ERROR";
           break;
         case "CONNECTION_REFUSED":
-        case "ECONNREFUSED":
-          errorMessage = "Conexão com o banco de dados foi recusada. Verifique se o servidor MongoDB está ativo e acessível.";
           errorCode = "DATABASE_REFUSED_ERROR";
           break;
+        case "IP_NOT_AUTHORIZED":
+          errorCode = "DATABASE_ACCESS_ERROR";
+          break;
+        case "SSL_ERROR":
+          errorCode = "DATABASE_SSL_ERROR";
+          break;
         default:
-          // Verificar mensagens de erro comuns
-          if (dbError?.message?.includes("MONGODB_URI não está definida")) {
-            errorMessage = "Variável de ambiente MONGODB_URI não está configurada. Configure esta variável nas configurações da plataforma (ex: Vercel).";
-            errorCode = "DATABASE_CONFIG_ERROR";
-          } else if (dbError?.message?.includes("ENOTFOUND")) {
-            errorMessage = "Não foi possível resolver o hostname do MongoDB. Verifique a URI de conexão.";
-            errorCode = "DATABASE_HOST_ERROR";
-          } else if (dbError?.message?.includes("authentication failed") || dbError?.code === 18) {
-            errorMessage = "Falha na autenticação do MongoDB. Verifique as credenciais.";
-            errorCode = "DATABASE_AUTH_ERROR";
-          }
+          errorCode = "DATABASE_CONNECTION_ERROR";
       }
 
-      return NextResponse.json(
-        {
-          error: errorCode,
-          message: errorMessage,
-          // Incluir informações de debug apenas em desenvolvimento
-          ...(process.env.NODE_ENV === "development" && {
-            debug: {
-              type: errorType,
-              code: dbError?.code,
-              codeName: dbError?.codeName,
-            },
-          }),
-        },
-        { status: 500 }
-      );
+      // Preparar resposta com informações úteis
+      const response: any = {
+        error: errorCode,
+        message: errorMessage,
+        type: errorType,
+      };
+
+      // Sempre incluir sugestão se disponível (útil para diagnóstico)
+      if (errorSuggestion) {
+        response.suggestion = errorSuggestion;
+      }
+
+      // Incluir informações adicionais de diagnóstico em produção também
+      // (mas sem expor dados sensíveis)
+      response.diagnostic = {
+        errorType: errorType,
+        timestamp: new Date().toISOString(),
+        // Incluir código se disponível (não é sensível)
+        ...(errorDetails.code && { code: errorDetails.code }),
+        ...(errorDetails.codeName && { codeName: errorDetails.codeName }),
+      };
+
+      // Em desenvolvimento, incluir mais detalhes
+      if (process.env.NODE_ENV === "development") {
+        response.debug = {
+          originalError: dbError?.originalError?.message,
+          stack: dbError?.stack,
+        };
+      }
+
+      return NextResponse.json(response, { status: 500 });
     }
 
     // Verificar se os modelos estão disponíveis
