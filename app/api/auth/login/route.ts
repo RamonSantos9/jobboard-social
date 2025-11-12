@@ -5,7 +5,18 @@ import CompanyModel from "@/models/Company";
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error("Erro ao fazer parse do body:", parseError);
+      return NextResponse.json(
+        { error: "INVALID_REQUEST", message: "Formato de requisição inválido." },
+        { status: 400 }
+      );
+    }
+
+    const { email, password } = body;
 
     // Validar dados obrigatórios
     if (!email || !password) {
@@ -129,6 +140,24 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error("Login API error:", error);
+    
+    // Verificar se é um erro de conexão com o banco de dados
+    if (
+      error instanceof Error &&
+      (error.message.includes("MongoServerError") ||
+        error.message.includes("Mongoose") ||
+        error.message.includes("connection") ||
+        error.message.includes("timeout"))
+    ) {
+      return NextResponse.json(
+        {
+          error: "DATABASE_CONNECTION_ERROR",
+          message: "Erro de conexão com o servidor. Tente novamente mais tarde.",
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
       {
         error: "AUTH_ERROR",
