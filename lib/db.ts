@@ -89,20 +89,94 @@ function analyzeError(error: any): ErrorDetails {
   const errorCode = error?.code;
   const errorCodeName = error?.codeName;
   const errorName = error?.name;
+  const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL;
 
-  // Detectar erros de DNS/Hostname
-  if (errorCode === "ENOTFOUND" || errorMessage.includes("ENOTFOUND") || errorMessage.includes("getaddrinfo")) {
+  // Log completo do erro para diagnóstico
+  console.error("[MongoDB Error Analysis]", {
+    message: errorMessage,
+    code: errorCode,
+    codeName: errorCodeName,
+    name: errorName,
+    stack: error?.stack?.substring(0, 500), // Primeiros 500 caracteres do stack
+  });
+
+  // Detectar erros de DNS/Hostname (prioridade alta)
+  if (errorCode === "ENOTFOUND" || errorMessage.includes("ENOTFOUND") || errorMessage.includes("getaddrinfo") || errorMessage.includes("ENOTFOUND")) {
     return {
       type: "HOST_NOT_FOUND",
       code: errorCode,
       codeName: errorCodeName,
       message: "Não foi possível resolver o hostname do MongoDB",
-      suggestion: "Verifique se a URI do MongoDB está correta e se o hostname existe. Para MongoDB Atlas, verifique se o cluster está ativo.",
+      suggestion: "Verifique se a URI do MongoDB está correta e se o hostname existe. Para MongoDB Atlas, verifique se o cluster está ativo e se a URI usa o formato mongodb+srv://.",
     };
   }
 
+  // Detectar erros de autenticação (prioridade alta - aparece antes de timeout)
+  if (
+    errorCode === 18 || 
+    errorCode === "EAUTH" || 
+    errorMessage.toLowerCase().includes("authentication failed") || 
+    errorMessage.toLowerCase().includes("bad auth") ||
+    errorMessage.toLowerCase().includes("auth failed") ||
+    errorMessage.toLowerCase().includes("invalid credentials") ||
+    errorCodeName === "MongoServerError" && errorMessage.includes("authentication")
+  ) {
+    return {
+      type: "AUTH_FAILED",
+      code: errorCode,
+      codeName: errorCodeName,
+      message: "Falha na autenticação do MongoDB",
+      suggestion: "Verifique se o usuário e senha estão corretos. Certifique-se de que caracteres especiais na senha estão codificados (ex: @ vira %40). Verifique também se o usuário tem as permissões adequadas no MongoDB Atlas.",
+    };
+  }
+
+  // Detectar erros de timeout
+  // Em produção com MongoDB Atlas, timeout geralmente significa IP não autorizado
+  // O MongoDB Atlas não responde a conexões de IPs não autorizados, resultando em timeout
+  const isAtlas = MONGODB_URI?.includes("mongodb+srv://") || MONGODB_URI?.includes("atlas");
+  const isTimeoutError = 
+    errorCode === "ETIMEDOUT" || 
+    errorCode === "ESOCKETTIMEDOUT" || 
+    errorMessage.includes("timeout") || 
+    errorCodeName === "ServerSelectionTimeoutError" ||
+    errorCodeName === "MongoServerSelectionError" ||
+    (errorName === "MongoServerSelectionError" && errorMessage.includes("timeout")) ||
+    errorName === "MongoServerSelectionError";
+
+  if (isTimeoutError) {
+    // Em produção com MongoDB Atlas, timeout quase sempre significa IP não autorizado
+    // Porque o Atlas simplesmente não responde a IPs não autorizados
+    if (isProduction && isAtlas) {
+      return {
+        type: "IP_NOT_AUTHORIZED",
+        code: errorCode,
+        codeName: errorCodeName,
+        message: "Timeout ao conectar - IP provavelmente não está autorizado no MongoDB Atlas",
+        suggestion: "SOLUÇÃO RÁPIDA:\n1. Acesse https://cloud.mongodb.com/ e faça login\n2. Selecione seu projeto (se houver múltiplos)\n3. No menu lateral esquerdo, clique em 'Network Access'\n4. Clique no botão verde 'Add IP Address'\n5. Na modal, selecione 'Allow Access from Anywhere' (isso adiciona automaticamente 0.0.0.0/0)\n6. OU digite manualmente: 0.0.0.0/0\n7. Adicione um comentário opcional (ex: 'Vercel - All IPs')\n8. Clique em 'Confirm'\n9. AGUARDE 3-5 MINUTOS para a propagação\n10. Teste novamente\n\n⚠️ IMPORTANTE:\n- A Vercel usa IPs dinâmicos que mudam constantemente\n- Você DEVE usar 0.0.0.0/0 (permitir todos os IPs)\n- IPs específicos NÃO funcionam com a Vercel\n- Após adicionar, aguarde alguns minutos antes de testar",
+      };
+    } else {
+      return {
+        type: "TIMEOUT",
+        code: errorCode,
+        codeName: errorCodeName,
+        message: "Timeout ao conectar ao MongoDB",
+        suggestion: "Verifique: 1) Se o cluster está acessível, 2) Se o IP está na whitelist do MongoDB Atlas (use 0.0.0.0/0 para permitir todos os IPs), 3) Se não há problemas de rede ou firewall, 4) Se o cluster está ativo e rodando.",
+      };
+    }
+  }
+
   // Detectar erros de conexão recusada
-  if (errorCode === "ECONNREFUSED" || errorMessage.includes("ECONNREFUSED")) {
+  if (errorCode === "ECONNREFUSED" || errorMessage.includes("ECONNREFUSED") || errorMessage.includes("connection refused")) {
+    // Em produção com Atlas, connection refused pode indicar IP não autorizado
+    if (isProduction && MONGODB_URI?.includes("mongodb+srv://")) {
+      return {
+        type: "IP_NOT_AUTHORIZED",
+        code: errorCode,
+        codeName: errorCodeName,
+        message: "Conexão recusada - IP provavelmente não está na whitelist do MongoDB Atlas",
+        suggestion: "1. Acesse MongoDB Atlas → Network Access\n2. Clique em 'Add IP Address'\n3. Adicione '0.0.0.0/0' para permitir todos os IPs\n4. Aguarde 2-5 minutos para a propagação",
+      };
+    }
     return {
       type: "CONNECTION_REFUSED",
       code: errorCode,
@@ -112,30 +186,8 @@ function analyzeError(error: any): ErrorDetails {
     };
   }
 
-  // Detectar erros de autenticação
-  if (errorCode === 18 || errorCode === "EAUTH" || errorMessage.includes("authentication failed") || errorMessage.includes("bad auth")) {
-    return {
-      type: "AUTH_FAILED",
-      code: errorCode,
-      codeName: errorCodeName,
-      message: "Falha na autenticação do MongoDB",
-      suggestion: "Verifique se o usuário e senha estão corretos. Certifique-se de que caracteres especiais na senha estão codificados (ex: @ vira %40).",
-    };
-  }
-
-  // Detectar erros de timeout
-  if (errorCode === "ETIMEDOUT" || errorCode === "ESOCKETTIMEDOUT" || errorMessage.includes("timeout") || errorCodeName === "ServerSelectionTimeoutError") {
-    return {
-      type: "TIMEOUT",
-      code: errorCode,
-      codeName: errorCodeName,
-      message: "Timeout ao conectar ao MongoDB",
-      suggestion: "Verifique se o cluster está acessível, se o IP está na whitelist do MongoDB Atlas (use 0.0.0.0/0 para permitir todos os IPs), e se não há problemas de rede ou firewall.",
-    };
-  }
-
   // Detectar erros de SSL/TLS
-  if (errorMessage.includes("SSL") || errorMessage.includes("TLS") || errorMessage.includes("certificate")) {
+  if (errorMessage.includes("SSL") || errorMessage.includes("TLS") || errorMessage.includes("certificate") || errorMessage.includes("certificate")) {
     return {
       type: "SSL_ERROR",
       code: errorCode,
@@ -145,24 +197,31 @@ function analyzeError(error: any): ErrorDetails {
     };
   }
 
-  // Detectar erros de IP não autorizado (whitelist)
-  if (errorMessage.includes("not authorized") || errorMessage.includes("IP") || errorMessage.includes("whitelist")) {
+  // Detectar erros explícitos de IP não autorizado ou whitelist
+  if (
+    errorMessage.toLowerCase().includes("not authorized") || 
+    errorMessage.toLowerCase().includes("ip address") ||
+    errorMessage.toLowerCase().includes("whitelist") ||
+    errorMessage.toLowerCase().includes("access denied") ||
+    errorMessage.toLowerCase().includes("network access") ||
+    errorCodeName === "MongoNetworkError" && errorMessage.includes("access")
+  ) {
     return {
       type: "IP_NOT_AUTHORIZED",
       code: errorCode,
       codeName: errorCodeName,
       message: "IP não autorizado para acessar o MongoDB",
-      suggestion: "Adicione o IP do servidor (ou 0.0.0.0/0 para permitir todos) na Network Access do MongoDB Atlas.",
+      suggestion: "1. Acesse MongoDB Atlas → Network Access\n2. Clique em 'Add IP Address'\n3. Adicione '0.0.0.0/0' para permitir todos os IPs (recomendado para Vercel)\n4. Aguarde 2-5 minutos para a propagação das mudanças",
     };
   }
 
-  // Erro genérico
+  // Erro genérico - mas ainda fornecer informações úteis
   return {
     type: "UNKNOWN_ERROR",
     code: errorCode,
     codeName: errorCodeName,
-    message: errorMessage,
-    suggestion: "Verifique os logs do servidor para mais detalhes. Certifique-se de que a URI do MongoDB está correta e que todas as configurações estão adequadas.",
+    message: errorMessage || "Erro desconhecido ao conectar ao MongoDB",
+    suggestion: `Erro: ${errorCodeName || errorName || "Desconhecido"}. Verifique: 1) Se a URI do MongoDB está correta, 2) Se o IP está na whitelist do MongoDB Atlas (0.0.0.0/0), 3) Se as credenciais estão corretas, 4) Se o cluster está ativo. Acesse /api/health/db para diagnóstico detalhado.`,
   };
 }
 
@@ -302,6 +361,18 @@ export async function connectDB() {
       connectionUri += `${separator}retryWrites=true&w=majority`;
     }
 
+    // Log informações de diagnóstico antes de tentar conectar
+    const isAtlas = connectionUri.includes("mongodb+srv://");
+    const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL;
+    
+    console.log("[MongoDB] 📋 Informações de diagnóstico:", {
+      environment: isProduction ? "production" : "development",
+      platform: process.env.VERCEL ? "Vercel" : "local",
+      atlas: isAtlas ? "yes" : "no",
+      uriFormat: connectionUri.substring(0, 20) + "...",
+      serverSelectionTimeout: opts.serverSelectionTimeoutMS,
+    });
+
     // Tentar conectar com retry logic
     cached.promise = connectWithRetry(connectionUri, opts)
       .then((mongooseConnection) => {
@@ -313,13 +384,22 @@ export async function connectDB() {
       })
       .catch((error: any) => {
         const errorDetails = analyzeError(error);
-        console.error("[MongoDB] ❌ Erro ao conectar:", {
+        
+        // Log completo do erro para diagnóstico
+        console.error("[MongoDB] ❌ Erro detalhado ao conectar:", {
           type: errorDetails.type,
           code: errorDetails.code,
           codeName: errorDetails.codeName,
           message: errorDetails.message,
+          originalMessage: error?.message,
+          originalName: error?.name,
+          originalCode: error?.code,
+          stack: error?.stack?.substring(0, 300), // Primeiros 300 caracteres do stack
           suggestion: errorDetails.suggestion,
+          environment: isProduction ? "production" : "development",
+          atlas: isAtlas ? "yes" : "no",
         });
+        
         cached.promise = null;
         
         // Criar erro aprimorado

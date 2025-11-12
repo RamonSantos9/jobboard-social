@@ -90,11 +90,40 @@ export async function POST(request: NextRequest) {
         response.suggestion = errorSuggestion;
       }
 
+      // Para erros de IP não autorizado, incluir instruções detalhadas
+      if (errorType === "IP_NOT_AUTHORIZED") {
+        response.fixSteps = [
+          "1. Acesse https://cloud.mongodb.com/ e faça login na sua conta",
+          "2. Selecione seu projeto (se houver múltiplos projetos)",
+          "3. No menu lateral esquerdo, clique em 'Network Access'",
+          "4. Verifique se já existe algum IP configurado",
+          "5. Se NÃO existir '0.0.0.0/0', clique em 'Add IP Address'",
+          "6. Na modal que abrir, clique no botão 'ALLOW ACCESS FROM ANYWHERE' (isso adiciona automaticamente 0.0.0.0/0)",
+          "7. OU digite manualmente no campo: 0.0.0.0/0",
+          "8. Adicione um comentário opcional: 'Vercel - All IPs'",
+          "9. Clique em 'Confirm'",
+          "10. AGUARDE 3-5 MINUTOS para a propagação das mudanças",
+          "11. Verifique se o IP aparece na lista com status 'Active'",
+          "12. Teste novamente a conexão",
+        ];
+        response.importantNote = "⚠️ IMPORTANTE: A Vercel usa IPs dinâmicos que mudam a cada deploy. Portanto, você DEVE usar 0.0.0.0/0 (permitir todos os IPs). Não é possível usar IPs específicos com a Vercel. Se você já adicionou 0.0.0.0/0, aguarde alguns minutos e verifique se o status está 'Active' no MongoDB Atlas.";
+        response.troubleshooting = [
+          "Se já adicionou 0.0.0.0/0 mas ainda dá erro:",
+          "- Verifique se o status está 'Active' (não 'Pending')",
+          "- Aguarde mais alguns minutos (pode levar até 10 minutos)",
+          "- Verifique se não há outras regras de firewall bloqueando",
+          "- Verifique se o cluster está ativo e rodando",
+          "- Tente remover e adicionar novamente o IP 0.0.0.0/0",
+        ];
+      }
+
       // Incluir informações adicionais de diagnóstico em produção também
       // (mas sem expor dados sensíveis)
       response.diagnostic = {
         errorType: errorType,
         timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || "unknown",
+        platform: process.env.VERCEL ? "Vercel" : "local",
         // Incluir código se disponível (não é sensível)
         ...(errorDetails.code && { code: errorDetails.code }),
         ...(errorDetails.codeName && { codeName: errorDetails.codeName }),
