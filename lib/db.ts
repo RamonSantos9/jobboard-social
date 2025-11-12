@@ -144,25 +144,35 @@ function analyzeError(error: any): ErrorDetails {
     errorName === "MongoServerSelectionError";
 
   if (isTimeoutError) {
-    // Em produção com MongoDB Atlas, timeout quase sempre significa IP não autorizado
-    // Porque o Atlas simplesmente não responde a IPs não autorizados
-    if (isProduction && isAtlas) {
+    // Não assumir automaticamente que timeout = IP não autorizado
+    // Timeout pode ser causado por vários fatores: latência de rede, problemas temporários, etc.
+    // Só classificar como IP_NOT_AUTHORIZED se houver indicações explícitas
+    const hasExplicitIPError = 
+      errorMessage.toLowerCase().includes("not authorized") ||
+      errorMessage.toLowerCase().includes("ip address") ||
+      errorMessage.toLowerCase().includes("whitelist") ||
+      errorMessage.toLowerCase().includes("access denied") ||
+      errorMessage.toLowerCase().includes("network access");
+    
+    // Se houver indicações explícitas de problema de IP E estiver em produção com Atlas
+    if (hasExplicitIPError && isProduction && isAtlas) {
       return {
         type: "IP_NOT_AUTHORIZED",
         code: errorCode,
         codeName: errorCodeName,
-        message: "Timeout ao conectar - IP provavelmente não está autorizado no MongoDB Atlas",
+        message: "IP não autorizado para acessar o MongoDB",
         suggestion: "SOLUÇÃO RÁPIDA:\n1. Acesse https://cloud.mongodb.com/ e faça login\n2. Selecione seu projeto (se houver múltiplos)\n3. No menu lateral esquerdo, clique em 'Network Access'\n4. Clique no botão verde 'Add IP Address'\n5. Na modal, selecione 'Allow Access from Anywhere' (isso adiciona automaticamente 0.0.0.0/0)\n6. OU digite manualmente: 0.0.0.0/0\n7. Adicione um comentário opcional (ex: 'Vercel - All IPs')\n8. Clique em 'Confirm'\n9. AGUARDE 3-5 MINUTOS para a propagação\n10. Teste novamente\n\n⚠️ IMPORTANTE:\n- A Vercel usa IPs dinâmicos que mudam constantemente\n- Você DEVE usar 0.0.0.0/0 (permitir todos os IPs)\n- IPs específicos NÃO funcionam com a Vercel\n- Após adicionar, aguarde alguns minutos antes de testar",
       };
-    } else {
-      return {
-        type: "TIMEOUT",
-        code: errorCode,
-        codeName: errorCodeName,
-        message: "Timeout ao conectar ao MongoDB",
-        suggestion: "Verifique: 1) Se o cluster está acessível, 2) Se o IP está na whitelist do MongoDB Atlas (use 0.0.0.0/0 para permitir todos os IPs), 3) Se não há problemas de rede ou firewall, 4) Se o cluster está ativo e rodando.",
-      };
     }
+    
+    // Caso contrário, classificar como timeout genérico
+    return {
+      type: "TIMEOUT",
+      code: errorCode,
+      codeName: errorCodeName,
+      message: "Timeout ao conectar ao MongoDB",
+      suggestion: "Verifique: 1) Se o cluster está acessível, 2) Se o IP está na whitelist do MongoDB Atlas (use 0.0.0.0/0 para permitir todos os IPs), 3) Se não há problemas de rede ou firewall, 4) Se o cluster está ativo e rodando. Se o IP já foi liberado, aguarde alguns minutos e tente novamente.",
+    };
   }
 
   // Detectar erros de conexão recusada
@@ -247,10 +257,21 @@ async function connectWithRetry(
       const errorDetails = analyzeError(error);
       
       // Não tentar novamente para erros que não são temporários
-      const nonRetryableErrors = ["HOST_NOT_FOUND", "AUTH_FAILED", "SSL_ERROR", "IP_NOT_AUTHORIZED"];
+      // IP_NOT_AUTHORIZED foi removido da lista para permitir retry caso o IP tenha sido liberado recentemente
+      const nonRetryableErrors = ["HOST_NOT_FOUND", "AUTH_FAILED", "SSL_ERROR"];
       if (nonRetryableErrors.includes(errorDetails.type)) {
         console.error(`[MongoDB] ❌ Erro não recuperável: ${errorDetails.type}`);
         throw error;
+      }
+      
+      // Para erros de IP_NOT_AUTHORIZED, usar delay maior entre tentativas
+      // pois pode levar alguns minutos para a propagação no MongoDB Atlas
+      if (errorDetails.type === "IP_NOT_AUTHORIZED" && attempt < maxRetries) {
+        const delay = Math.max(initialDelay * Math.pow(2, attempt - 1), 5000); // Mínimo de 5 segundos
+        console.log(`[MongoDB] ⚠️ Erro de IP não autorizado na tentativa ${attempt}, aguardando ${delay}ms antes de tentar novamente...`);
+        console.log(`[MongoDB] 💡 Se você acabou de liberar o IP no MongoDB Atlas, aguarde alguns minutos para a propagação.`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue; // Continuar para próxima tentativa
       }
 
       // Se não for a última tentativa, aguardar antes de tentar novamente
@@ -301,9 +322,23 @@ export async function connectDB() {
       // Verificar se a conexão ainda está ativa
       const readyState = mongoose.connection.readyState;
       if (readyState === 1) {
-        // Conexão está conectada
-        console.log("[MongoDB] ✅ Usando conexão existente");
-        return cached.conn;
+        // Conexão está conectada - fazer ping para verificar se está realmente ativa
+        try {
+          await mongoose.connection.db.admin().ping();
+          console.log("[MongoDB] ✅ Usando conexão existente (verificada com ping)");
+          return cached.conn;
+        } catch (pingError) {
+          // Se o ping falhar, a conexão não está realmente ativa
+          console.log("[MongoDB] ⚠️ Ping falhou, conexão não está ativa. Limpando cache...");
+          cached.conn = null;
+          cached.promise = null;
+          // Fechar a conexão antiga se possível
+          try {
+            await mongoose.connection.close();
+          } catch (closeError) {
+            // Ignorar erros ao fechar
+          }
+        }
       } else if (readyState === 2 || readyState === 3) {
         // Conexão está conectando ou desconectando, aguardar
         console.log(`[MongoDB] ⏳ Conexão em estado ${readyState}, aguardando...`);
@@ -312,12 +347,28 @@ export async function connectDB() {
         console.log("[MongoDB] 🔄 Conexão não está ativa, limpando cache...");
         cached.conn = null;
         cached.promise = null;
+        // Fechar a conexão antiga se possível
+        try {
+          if (mongoose.connection.readyState !== 0) {
+            await mongoose.connection.close();
+          }
+        } catch (closeError) {
+          // Ignorar erros ao fechar
+        }
       }
     } catch (error) {
       // Se houver erro ao verificar, limpar cache
       console.error("[MongoDB] ⚠️ Erro ao verificar conexão:", error);
       cached.conn = null;
       cached.promise = null;
+      // Tentar fechar a conexão antiga
+      try {
+        if (mongoose.connection.readyState !== 0) {
+          await mongoose.connection.close();
+        }
+      } catch (closeError) {
+        // Ignorar erros ao fechar
+      }
     }
   }
 
@@ -344,10 +395,10 @@ export async function connectDB() {
       bufferCommands: false,
       maxPoolSize: 1, // Reduzido para serverless
       minPoolSize: 0,
-      serverSelectionTimeoutMS: 15000, // 15 segundos
+      serverSelectionTimeoutMS: 30000, // 30 segundos (aumentado para dar mais tempo)
       socketTimeoutMS: 45000,
-      connectTimeoutMS: 15000,
-      family: 4, // Forçar IPv4
+      connectTimeoutMS: 30000, // 30 segundos (aumentado para dar mais tempo)
+      // Removido family: 4 para permitir que o MongoDB escolha automaticamente IPv4 ou IPv6
       retryWrites: true,
       retryReads: true,
       // Desabilitar algumas opções que podem causar problemas em serverless
@@ -400,7 +451,9 @@ export async function connectDB() {
           atlas: isAtlas ? "yes" : "no",
         });
         
+        // Limpar cache completamente quando há erro
         cached.promise = null;
+        cached.conn = null;
         
         // Criar erro aprimorado
         const enhancedError = new Error(errorDetails.message);

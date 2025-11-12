@@ -115,15 +115,71 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           console.error("Auth error:", error);
 
           // Verificar se é um erro de conexão com o banco de dados
+          // O connectDB() lança erros com a propriedade 'details' contendo informações estruturadas
+          if (error instanceof Error && (error as any).details) {
+            const errorDetails = (error as any).details;
+            const errorType = errorDetails.type || "UNKNOWN_ERROR";
+
+            console.error("Erro de conexão com o banco de dados:", {
+              type: errorType,
+              message: errorDetails.message,
+              code: errorDetails.code,
+              suggestion: errorDetails.suggestion,
+            });
+
+            // Mapear tipo de erro para código de erro apropriado
+            let errorCode = "DATABASE_CONNECTION_ERROR";
+            switch (errorType) {
+              case "MISSING_URI":
+              case "INVALID_URI":
+                errorCode = "DATABASE_CONFIG_ERROR";
+                break;
+              case "HOST_NOT_FOUND":
+                errorCode = "DATABASE_HOST_ERROR";
+                break;
+              case "AUTH_FAILED":
+                errorCode = "DATABASE_AUTH_ERROR";
+                break;
+              case "TIMEOUT":
+              case "SERVER_SELECTION_TIMEOUT":
+                errorCode = "DATABASE_TIMEOUT_ERROR";
+                break;
+              case "CONNECTION_REFUSED":
+                errorCode = "DATABASE_REFUSED_ERROR";
+                break;
+              case "IP_NOT_AUTHORIZED":
+                errorCode = "DATABASE_ACCESS_ERROR";
+                break;
+              case "SSL_ERROR":
+                errorCode = "DATABASE_SSL_ERROR";
+                break;
+              default:
+                errorCode = "DATABASE_CONNECTION_ERROR";
+            }
+
+            // Criar erro com informações detalhadas
+            const dbError = new Error(
+              errorDetails.message || "Erro de conexão com o banco de dados"
+            );
+            (dbError as any).code = errorCode;
+            (dbError as any).type = errorType;
+            (dbError as any).details = errorDetails;
+            throw dbError;
+          }
+
+          // Verificar se é um erro de conexão com o banco de dados (detecção genérica)
           if (
             error instanceof Error &&
             (error.message.includes("MongoServerError") ||
               error.message.includes("Mongoose") ||
               error.message.includes("connection") ||
-              error.message.includes("timeout"))
+              error.message.includes("timeout") ||
+              error.message.includes("MongoNetworkError"))
           ) {
             console.error("Erro de conexão com o banco de dados:", error);
-            throw new Error("DATABASE_CONNECTION_ERROR");
+            const dbError = new Error("Erro de conexão com o banco de dados");
+            (dbError as any).code = "DATABASE_CONNECTION_ERROR";
+            throw dbError;
           }
 
           // Se já é um erro que lançamos, re-lançar
@@ -138,6 +194,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               "INVALID_PASSWORD",
               "EMAIL_NOT_FOUND",
               "DATABASE_CONNECTION_ERROR",
+              "DATABASE_CONFIG_ERROR",
+              "DATABASE_HOST_ERROR",
+              "DATABASE_AUTH_ERROR",
+              "DATABASE_TIMEOUT_ERROR",
+              "DATABASE_REFUSED_ERROR",
+              "DATABASE_ACCESS_ERROR",
+              "DATABASE_SSL_ERROR",
             ].includes(error.message)
           ) {
             throw error;

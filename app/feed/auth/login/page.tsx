@@ -45,11 +45,32 @@ function LoginPageContent() {
 
         // Se houver erro na verificação, exibir mensagem detalhada e não prosseguir
         if (!checkResponse.ok || checkData.error) {
-          const errorMessage = checkData.message || checkData.error || "Erro ao fazer login";
+          let errorMessage = checkData.message || checkData.error || "Erro ao fazer login";
+          
+          // Tratar erros de conexão com o banco de dados de forma especial
+          if (checkData.error === "DATABASE_ACCESS_ERROR" || checkData.type === "IP_NOT_AUTHORIZED") {
+            errorMessage = "IP não autorizado para acessar o MongoDB. Por favor, configure o MongoDB Atlas para permitir acesso de todos os IPs (0.0.0.0/0).";
+            if (checkData.suggestion) {
+              console.error("Instruções para corrigir:", checkData.suggestion);
+            }
+            if (checkData.fixSteps) {
+              console.error("Passos para corrigir:", checkData.fixSteps);
+            }
+            toast.error(errorMessage, {
+              duration: 10000, // Mensagem mais longa para erros importantes
+            });
+          } else if (checkData.error?.startsWith("DATABASE_")) {
+            errorMessage = checkData.message || "Erro de conexão com o banco de dados. Tente novamente mais tarde.";
+            toast.error(errorMessage, {
+              duration: 7000,
+            });
+          } else {
+            toast.error(errorMessage, {
+              duration: 5000,
+            });
+          }
+          
           console.error("Erro na verificação de credenciais:", checkData);
-          toast.error(errorMessage, {
-            duration: 5000,
-          });
           setLoading(false);
           return;
         }
@@ -109,6 +130,27 @@ function LoginPageContent() {
               break;
             case "DATABASE_CONNECTION_ERROR":
               errorMessage = "Erro de conexão com o servidor. Tente novamente mais tarde.";
+              break;
+            case "DATABASE_ACCESS_ERROR":
+              errorMessage = "IP não autorizado para acessar o MongoDB. Configure o MongoDB Atlas para permitir acesso de todos os IPs (0.0.0.0/0).";
+              break;
+            case "DATABASE_CONFIG_ERROR":
+              errorMessage = "Erro na configuração do banco de dados. Verifique as variáveis de ambiente.";
+              break;
+            case "DATABASE_HOST_ERROR":
+              errorMessage = "Não foi possível conectar ao servidor do banco de dados. Verifique a configuração.";
+              break;
+            case "DATABASE_AUTH_ERROR":
+              errorMessage = "Erro de autenticação com o banco de dados. Verifique as credenciais.";
+              break;
+            case "DATABASE_TIMEOUT_ERROR":
+              errorMessage = "Timeout ao conectar ao banco de dados. Verifique se o IP está autorizado no MongoDB Atlas.";
+              break;
+            case "DATABASE_REFUSED_ERROR":
+              errorMessage = "Conexão recusada pelo servidor do banco de dados. Verifique a configuração.";
+              break;
+            case "DATABASE_SSL_ERROR":
+              errorMessage = "Erro de SSL ao conectar ao banco de dados. Verifique a configuração.";
               break;
             case "AUTH_ERROR":
               errorMessage = "Erro ao processar autenticação. Tente novamente mais tarde.";
