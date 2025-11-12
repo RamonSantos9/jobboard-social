@@ -106,6 +106,7 @@ function LoginPageContent() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@email.com"
+                autoComplete="email"
               />
             </div>
 
@@ -131,6 +132,7 @@ function LoginPageContent() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="input sz-md variant-mixed"
+                autoComplete="current-password"
               />
             </div>
 

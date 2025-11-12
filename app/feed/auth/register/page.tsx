@@ -162,6 +162,7 @@ function RegisterPageContent() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Seu Nome"
+                autoComplete="name"
               />
             </div>
 
@@ -179,6 +180,7 @@ function RegisterPageContent() {
                 placeholder="seu@email.com"
                 readOnly={!!inviteInfo}
                 className={inviteInfo ? "bg-gray-100 cursor-not-allowed" : ""}
+                autoComplete="email"
               />
               {inviteInfo && (
                 <p className="text-xs text-gray-500">
@@ -199,6 +201,7 @@ function RegisterPageContent() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="input sz-md variant-mixed"
+                autoComplete="new-password"
               />
             </div>
 

@@ -4,7 +4,21 @@ import connectDB from "@/lib/db";
 import UserModel from "@/models/User";
 import CompanyModel from "@/models/Company";
 
+// Validação de variáveis de ambiente
+if (!process.env.NEXTAUTH_SECRET) {
+  console.error(
+    "NEXTAUTH_SECRET não está definido. Configure esta variável de ambiente."
+  );
+}
+
+if (!process.env.NEXTAUTH_URL && process.env.NODE_ENV === "production") {
+  console.warn(
+    "NEXTAUTH_URL não está definido em produção. Isso pode causar problemas."
+  );
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true, // Necessário para produção na Vercel
   providers: [
     Credentials({
       name: "credentials",
@@ -97,11 +111,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           // Email não encontrado (nem como usuário nem como empresa)
           throw new Error("EMAIL_NOT_FOUND");
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error("Auth error:", error);
+
+          // Verificar se é um erro de conexão com o banco de dados
+          if (
+            error instanceof Error &&
+            (error.message.includes("MongoServerError") ||
+              error.message.includes("Mongoose") ||
+              error.message.includes("connection") ||
+              error.message.includes("timeout"))
+          ) {
+            console.error("Erro de conexão com o banco de dados:", error);
+            throw new Error("DATABASE_CONNECTION_ERROR");
+          }
 
           // Se já é um erro que lançamos, re-lançar
           if (
+            error instanceof Error &&
             error.message &&
             [
               "EMAIL_PASSWORD_REQUIRED",
@@ -110,12 +137,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               "ACCOUNT_PENDING",
               "INVALID_PASSWORD",
               "EMAIL_NOT_FOUND",
+              "DATABASE_CONNECTION_ERROR",
             ].includes(error.message)
           ) {
             throw error;
           }
 
           // Para outros erros, lançar erro genérico
+          console.error("Erro desconhecido na autenticação:", error);
           throw new Error("AUTH_ERROR");
         }
       },
@@ -157,5 +186,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 dias
   },
+  secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === "development",
 });
