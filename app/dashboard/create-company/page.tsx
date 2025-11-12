@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import AuthGuard from "@/components/AuthGuard";
+import { ArrowLeft, Building2 } from "lucide-react";
 
 export default function CreateCompanyPage() {
   const [formData, setFormData] = useState({

@@ -44,6 +44,7 @@ interface PublicProfile {
   lastName: string;
   slug: string;
   photoUrl?: string;
+  bannerUrl?: string;
   headline?: string;
   location?: string;
   bio?: string;

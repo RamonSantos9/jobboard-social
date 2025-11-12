@@ -16,12 +16,14 @@ interface FeaturedPost {
   createdAt: string;
   authorId?: {
     _id: string;
+    email?: string;
     name: string;
     profile?: {
       firstName: string;
       lastName: string;
       photoUrl?: string;
       slug?: string;
+      headline?: string;
     };
   };
   reactionsCount?: {
@@ -35,6 +37,34 @@ interface FeaturedPost {
   currentReaction?: ReactionType | null;
   commentsCount?: number;
   isHighlighted?: boolean;
+  reactions?: Array<{
+    userId?: string;
+    companyId?: string;
+    type: ReactionType;
+    user?: {
+      _id: string;
+      name: string;
+      email: string;
+      profile?: {
+        firstName: string;
+        lastName: string;
+        photoUrl?: string;
+      };
+    };
+    company?: {
+      _id: string;
+      name: string;
+      logoUrl?: string;
+    };
+    isFollowing?: boolean;
+  }>;
+  sharesCount?: number;
+  companyId?: {
+    _id: string;
+    name: string;
+    logoUrl?: string;
+    followers?: number;
+  };
 }
 
 interface FeaturedPostsCardProps {
@@ -214,7 +244,15 @@ export default function FeaturedPostsCard({ userId }: FeaturedPostsCardProps) {
             setShowPostModal(false);
             setSelectedPost(null);
           }}
-          post={selectedPost}
+          post={{
+            ...selectedPost,
+            authorId: selectedPost.authorId
+              ? {
+                  ...selectedPost.authorId,
+                  email: selectedPost.authorId.email || "",
+                }
+              : undefined,
+          }}
           initialMediaIndex={0}
         />
       )}

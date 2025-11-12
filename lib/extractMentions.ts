@@ -16,7 +16,7 @@ export async function extractMentions(content: string): Promise<mongoose.Types.O
   // Regex para encontrar @nome (permite letras, números, underscore, hífen)
   const mentionRegex = /@([a-zA-Z0-9_-]+)/g;
   const matches = Array.from(content.matchAll(mentionRegex));
-  const mentionedNames = [...new Set(matches.map((match) => match[1].toLowerCase()))]; // Remover duplicatas
+  const mentionedNames = Array.from(new Set(matches.map((match) => match[1].toLowerCase()))); // Remover duplicatas
 
   if (mentionedNames.length === 0) return [];
 
@@ -26,7 +26,7 @@ export async function extractMentions(content: string): Promise<mongoose.Types.O
   for (const name of mentionedNames) {
     try {
       // Buscar perfis que correspondem ao nome (busca exata ou parcial no nome completo)
-      const profiles = await Profile.find({
+      const profiles = (await Profile.find({
         $or: [
           { firstName: { $regex: new RegExp(`^${name}`, "i") } },
           { lastName: { $regex: new RegExp(`^${name}`, "i") } },
@@ -34,7 +34,7 @@ export async function extractMentions(content: string): Promise<mongoose.Types.O
       })
         .select("userId")
         .limit(5) // Limitar resultados para performance
-        .lean();
+        .lean()) as unknown as Array<{ userId: mongoose.Types.ObjectId }>;
 
       for (const profile of profiles) {
         if (profile.userId && !userIds.some((id) => id.toString() === profile.userId.toString())) {
@@ -43,12 +43,12 @@ export async function extractMentions(content: string): Promise<mongoose.Types.O
       }
 
       // Buscar empresas pelo nome e notificar admins
-      const companies = await Company.find({
+      const companies = (await Company.find({
         name: { $regex: new RegExp(`^${name}`, "i") },
       })
         .select("admins")
         .limit(5) // Limitar resultados
-        .lean();
+        .lean()) as unknown as Array<{ admins?: mongoose.Types.ObjectId[] }>;
 
       for (const company of companies) {
         if (company.admins && company.admins.length > 0) {
@@ -61,12 +61,12 @@ export async function extractMentions(content: string): Promise<mongoose.Types.O
       }
 
       // Buscar usuários pelo nome direto (fallback)
-      const users = await User.find({
+      const users = (await User.find({
         name: { $regex: new RegExp(`^${name}`, "i") },
       })
         .select("_id")
         .limit(5) // Limitar resultados
-        .lean();
+        .lean()) as unknown as Array<{ _id: mongoose.Types.ObjectId }>;
 
       for (const user of users) {
         if (!userIds.some((id) => id.toString() === user._id.toString())) {
@@ -90,19 +90,19 @@ export async function getUserDisplayName(userId: mongoose.Types.ObjectId): Promi
     await connectDB();
 
     // Buscar perfil primeiro
-    const profile = await Profile.findOne({ userId })
+    const profile = (await Profile.findOne({ userId })
       .select("firstName lastName")
-      .lean();
+      .lean()) as unknown as { firstName?: string; lastName?: string } | null;
     if (profile && profile.firstName) {
       return `${profile.firstName} ${profile.lastName || ""}`.trim();
     }
 
     // Tentar buscar como empresa (verificar se é admin de alguma empresa)
-    const company = await Company.findOne({ admins: userId }).select("name").lean();
-    if (company) return company.name;
+    const company = (await Company.findOne({ admins: userId }).select("name").lean()) as unknown as { name?: string } | null;
+    if (company?.name) return company.name;
 
     // Fallback para nome do usuário
-    const user = await User.findById(userId).select("name").lean();
+    const user = (await User.findById(userId).select("name").lean()) as unknown as { name?: string } | null;
     return user?.name || "Usuário";
   } catch (error) {
     console.error("Erro ao buscar nome do usuário:", error);

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import connectDB from "@/lib/db";
+import mongoose from "mongoose";
 import User from "@/models/User";
 import Company from "@/models/Company";
-import Recruiter from "@/models/Recruiter";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -17,23 +17,41 @@ export async function POST(
 
     await connectDB();
 
-    const recruiterId = params.id;
+    const { id } = await params;
+    const recruiterUserId = id;
     const { reason } = await request.json();
 
-    // Buscar recrutador
-    const recruiter = await Recruiter.findById(recruiterId).populate(
-      "companyId"
-    );
-    if (!recruiter) {
+    // Buscar usuário recrutador
+    const recruiterUser = await User.findById(recruiterUserId);
+    if (!recruiterUser) {
       return NextResponse.json(
         { error: "Recrutador não encontrado" },
         { status: 404 }
       );
     }
 
+    // Verificar se o usuário é realmente um recrutador
+    if (!recruiterUser.isRecruiter || !recruiterUser.companyId) {
+      return NextResponse.json(
+        { error: "Usuário não é um recrutador" },
+        { status: 400 }
+      );
+    }
+
+    // Buscar empresa do recrutador
+    const company = await Company.findById(recruiterUser.companyId);
+    if (!company) {
+      return NextResponse.json(
+        { error: "Empresa não encontrada" },
+        { status: 404 }
+      );
+    }
+
     // Verificar se o usuário é admin da empresa
-    const company = await Company.findById(recruiter.companyId);
-    if (!company || company.adminUserId.toString() !== session.user.id) {
+    const isAdmin = company.admins.some(
+      (adminId: mongoose.Types.ObjectId) => adminId.toString() === session.user.id
+    );
+    if (!isAdmin) {
       return NextResponse.json(
         {
           error: "Apenas o administrador da empresa pode rejeitar recrutadores",
@@ -42,30 +60,21 @@ export async function POST(
       );
     }
 
-    // Verificar se já foi processado
-    if (recruiter.status !== "pending") {
+    // Verificar se já foi processado (status não é pending)
+    if (recruiterUser.status !== "pending") {
       return NextResponse.json(
         { error: "Solicitação já foi processada" },
         { status: 400 }
       );
     }
 
-    // Rejeitar recrutador
-    recruiter.status = "rejected";
-    recruiter.approvedBy = session.user.id;
-    recruiter.approvedAt = new Date();
-    await recruiter.save();
+    // Rejeitar recrutador - atualizar status do usuário
+    recruiterUser.status = "suspended";
+    await recruiterUser.save();
 
-    // Atualizar status do usuário
-    const user = await User.findById(recruiter.userId);
-    if (user) {
-      user.status = "suspended";
-      await user.save();
-    }
-
-    // Remover da lista de pendentes
-    company.pendingRecruiters = company.pendingRecruiters.filter(
-      (id) => id.toString() !== recruiter.userId.toString()
+    // Remover da lista de recrutadores da empresa
+    company.recruiters = company.recruiters.filter(
+      (id: mongoose.Types.ObjectId) => id.toString() !== recruiterUserId
     );
     await company.save();
 
@@ -75,9 +84,9 @@ export async function POST(
     return NextResponse.json({
       message: "Solicitação de recrutador rejeitada",
       recruiter: {
-        id: recruiter._id,
-        status: recruiter.status,
-        rejectedAt: recruiter.approvedAt,
+        id: recruiterUser._id,
+        status: recruiterUser.status,
+        rejectedAt: new Date(),
         reason: reason || "Não especificado",
       },
     });
@@ -89,6 +98,3 @@ export async function POST(
     );
   }
 }
-
-
-

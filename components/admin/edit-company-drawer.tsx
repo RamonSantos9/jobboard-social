@@ -84,20 +84,7 @@ export function EditCompanyDrawer({
     setLoading(true);
 
     try {
-      // Garantir que o ID seja uma string válida
-      let companyId: string;
-      if (typeof company._id === 'string') {
-        companyId = company._id;
-      } else if (company._id && typeof company._id.toString === 'function') {
-        companyId = company._id.toString();
-      } else {
-        console.error("Invalid company ID:", company._id);
-        toast.error("ID da empresa inválido");
-        setLoading(false);
-        return;
-      }
-
-      console.log("Updating company with ID:", companyId, "Type:", typeof companyId);
+      const companyId = String(company._id);
       const response = await fetch(`/api/admin/companies/${companyId}`, {
         method: "PUT",
         headers: {

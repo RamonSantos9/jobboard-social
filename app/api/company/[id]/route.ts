@@ -6,15 +6,16 @@ import Invite from "@/models/Invite";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession();
+    const session = await auth();
 
     await connectDB();
 
+    const { id } = await params;
     // Buscar empresa com dados relacionados
-    const company = await Company.findById(params.id)
+    const company = await Company.findById(id)
       .populate("admins", "name email")
       .populate("recruiters", "name email");
 

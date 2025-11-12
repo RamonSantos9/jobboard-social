@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    const user = await User.findById(session.user.id).select("role").lean();
+    const user = await User.findById(session.user.id).select("role").lean() as { role?: string } | null;
 
     if (!user || user.role !== "admin") {
       return NextResponse.json(

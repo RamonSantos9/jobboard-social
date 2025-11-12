@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import connectDB from "@/lib/db";
+import mongoose from "mongoose";
 import User from "@/models/User";
 import Company from "@/models/Company";
-import Recruiter from "@/models/Recruiter";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -17,22 +17,40 @@ export async function POST(
 
     await connectDB();
 
-    const recruiterId = params.id;
+    const { id } = await params;
+    const recruiterUserId = id;
 
-    // Buscar recrutador
-    const recruiter = await Recruiter.findById(recruiterId).populate(
-      "companyId"
-    );
-    if (!recruiter) {
+    // Buscar usuário recrutador
+    const recruiterUser = await User.findById(recruiterUserId);
+    if (!recruiterUser) {
       return NextResponse.json(
         { error: "Recrutador não encontrado" },
         { status: 404 }
       );
     }
 
+    // Verificar se o usuário é realmente um recrutador
+    if (!recruiterUser.isRecruiter || !recruiterUser.companyId) {
+      return NextResponse.json(
+        { error: "Usuário não é um recrutador" },
+        { status: 400 }
+      );
+    }
+
+    // Buscar empresa do recrutador
+    const company = await Company.findById(recruiterUser.companyId);
+    if (!company) {
+      return NextResponse.json(
+        { error: "Empresa não encontrada" },
+        { status: 404 }
+      );
+    }
+
     // Verificar se o usuário é admin da empresa
-    const company = await Company.findById(recruiter.companyId);
-    if (!company || company.adminUserId.toString() !== session.user.id) {
+    const isAdmin = company.admins.some(
+      (adminId: mongoose.Types.ObjectId) => adminId.toString() === session.user.id
+    );
+    if (!isAdmin) {
       return NextResponse.json(
         {
           error: "Apenas o administrador da empresa pode aprovar recrutadores",
@@ -41,34 +59,24 @@ export async function POST(
       );
     }
 
-    // Verificar se já foi aprovado
-    if (recruiter.status === "approved") {
+    // Verificar se já foi aprovado (status active e onboardingCompleted)
+    if (recruiterUser.status === "active" && recruiterUser.onboardingCompleted) {
       return NextResponse.json(
         { error: "Recrutador já foi aprovado" },
         { status: 400 }
       );
     }
 
-    // Aprovar recrutador
-    recruiter.status = "approved";
-    recruiter.approvedBy = session.user.id;
-    recruiter.approvedAt = new Date();
-    await recruiter.save();
+    // Aprovar recrutador - atualizar status do usuário
+    recruiterUser.status = "active";
+    recruiterUser.onboardingCompleted = true;
+    await recruiterUser.save();
 
-    // Atualizar status do usuário
-    const user = await User.findById(recruiter.userId);
-    if (user) {
-      user.status = "active";
-      user.onboardingCompleted = true;
-      await user.save();
+    // Adicionar recrutador à lista de recrutadores da empresa (se ainda não estiver)
+    if (!company.recruiters.some((id: mongoose.Types.ObjectId) => id.toString() === recruiterUserId)) {
+      company.recruiters.push(recruiterUser._id);
+      await company.save();
     }
-
-    // Adicionar recrutador à empresa
-    company.recruiters.push(recruiter.userId);
-    company.pendingRecruiters = company.pendingRecruiters.filter(
-      (id) => id.toString() !== recruiter.userId.toString()
-    );
-    await company.save();
 
     // TODO: Enviar notificação para o recrutador
     // TODO: Enviar email de aprovação
@@ -76,9 +84,9 @@ export async function POST(
     return NextResponse.json({
       message: "Recrutador aprovado com sucesso",
       recruiter: {
-        id: recruiter._id,
-        status: recruiter.status,
-        approvedAt: recruiter.approvedAt,
+        id: recruiterUser._id,
+        status: recruiterUser.status,
+        approvedAt: new Date(),
       },
     });
   } catch (error) {
@@ -89,6 +97,3 @@ export async function POST(
     );
   }
 }
-
-
-

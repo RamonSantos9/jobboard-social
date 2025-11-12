@@ -7,7 +7,7 @@ import Vacancy from "@/models/Vacancy";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -22,7 +22,7 @@ export async function GET(
     await connectDB();
 
     // Verificar se o usuário é admin
-    const currentUser = await User.findById(session.user.id).select("role").lean();
+    const currentUser = await User.findById(session.user.id).select("role").lean() as { role?: string } | null;
     if (!currentUser || currentUser.role !== "admin") {
       return NextResponse.json(
         { error: "Acesso negado. Apenas administradores podem acessar." },
@@ -30,7 +30,8 @@ export async function GET(
       );
     }
 
-    const application = await Application.findById(params.id)
+    const { id } = await params;
+    const application = await Application.findById(id)
       .populate("jobId", "title companyId")
       .populate("candidateId", "name email")
       .lean();
@@ -54,7 +55,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -69,7 +70,7 @@ export async function PUT(
     await connectDB();
 
     // Verificar se o usuário é admin
-    const currentUser = await User.findById(session.user.id).select("role").lean();
+    const currentUser = await User.findById(session.user.id).select("role").lean() as { role?: string } | null;
     if (!currentUser || currentUser.role !== "admin") {
       return NextResponse.json(
         { error: "Acesso negado. Apenas administradores podem editar candidaturas." },
@@ -77,7 +78,8 @@ export async function PUT(
       );
     }
 
-    const applicationId = params.id;
+    const { id } = await params;
+    const applicationId = id;
     const body = await request.json();
 
     // Verificar se a candidatura existe
@@ -131,7 +133,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -146,7 +148,7 @@ export async function DELETE(
     await connectDB();
 
     // Verificar se o usuário é admin
-    const currentUser = await User.findById(session.user.id).select("role").lean();
+    const currentUser = await User.findById(session.user.id).select("role").lean() as { role?: string } | null;
     if (!currentUser || currentUser.role !== "admin") {
       return NextResponse.json(
         { error: "Acesso negado. Apenas administradores podem deletar candidaturas." },
@@ -154,7 +156,8 @@ export async function DELETE(
       );
     }
 
-    const applicationId = params.id;
+    const { id } = await params;
+    const applicationId = id;
 
     const application = await Application.findById(applicationId);
     if (!application) {

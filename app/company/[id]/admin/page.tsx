@@ -7,11 +7,7 @@ import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { SiteHeader } from "@/components/dashboard/site-header";
 
 import { ScrollWrapper } from "@/components/dashboard/scroll-wrapper";
-import {
-  SidebarInset,
-  SidebarProvider,
-  useSidebar,
-} from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,8 +16,6 @@ import { Briefcase, Users, TrendingUp, Eye } from "lucide-react";
 import Link from "next/link";
 
 function CompanyAdminContent() {
-  const { state } = useSidebar();
-  const isCollapsed = state === "collapsed";
   const params = useParams();
   const companyId = params.id as string;
   const [stats, setStats] = useState<any>(null);
@@ -68,7 +62,6 @@ function CompanyAdminContent() {
   return (
     <>
       <AppSidebar variant="inset" />
-      <SidebarIconsOnly isCollapsed={isCollapsed} />
       <SidebarInset>
         <SiteHeader
           title={
@@ -184,15 +177,35 @@ function CompanyAdminContent() {
                 )}
 
                 {/* Charts */}
-                {stats?.trends?.applicationsByMonth && (
-                  <div className="px-4 lg:px-6">
-                    <ChartArea
-                      title="Candidaturas por Mês"
-                      data={stats.trends.applicationsByMonth}
-                      color="text-purple-600"
-                    />
-                  </div>
-                )}
+                {stats?.trends?.applicationsByMonth &&
+                  stats.trends.applicationsByMonth.length > 0 && (
+                    <div className="px-4 lg:px-6">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Candidaturas por Mês</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            {stats.trends.applicationsByMonth.map(
+                              (item: any) => (
+                                <div
+                                  key={item.month}
+                                  className="flex items-center justify-between p-2 rounded-lg border"
+                                >
+                                  <span className="text-sm font-medium">
+                                    {item.month}
+                                  </span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {item.count} candidaturas
+                                  </span>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
 
                 {/* Recent Applications */}
                 <div className="px-4 lg:px-6">
@@ -276,6 +289,7 @@ function CompanyAdminContent() {
 export default function CompanyAdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const params = useParams();
 
   useEffect(() => {
     if (status === "loading") return;
@@ -302,7 +316,7 @@ export default function CompanyAdminPage() {
     if (params.id) {
       checkAccess();
     }
-  }, [session, status, router, params.id]);
+  }, [session, status, router, params]);
 
   if (status === "loading") {
     return <div></div>;

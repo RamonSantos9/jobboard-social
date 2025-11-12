@@ -3,9 +3,9 @@ import { auth } from "@/auth";
 import connectDB from "@/lib/db";
 import mongoose from "mongoose";
 import Post from "@/models/Post";
-import Comment from "@/models/Comment";
-import Profile from "@/models/Profile";
-import Company from "@/models/Company";
+import Comment, { IComment } from "@/models/Comment";
+import Profile, { IProfile } from "@/models/Profile";
+import Company, { ICompany } from "@/models/Company";
 import Notification from "@/models/Notification";
 import type { ReactionType } from "@/models/Post";
 import { extractMentions, getUserDisplayName } from "@/lib/extractMentions";
@@ -68,18 +68,18 @@ export async function GET(
         console.log(`Comentário ${comment._id}: Buscando respostas com parentCommentId=${comment._id}, encontradas ${replies.length} resposta(s)`);
 
         // Buscar perfil do autor para seguidores
-        const profile = await Profile.findOne({
+        const profile = (await Profile.findOne({
           userId: comment.authorId._id,
         })
           .select("connections")
-          .lean();
+          .lean()) as unknown as Partial<Pick<IProfile, "connections">> | null;
 
         // Verificar se é empresa
-        const company = await Company.findOne({
+        const company = (await Company.findOne({
           userId: comment.authorId._id,
         })
           .select("followersCount")
-          .lean();
+          .lean()) as unknown as Partial<Pick<ICompany, "followersCount">> | null;
 
         // Calcular contagem de reações
         const reactionsCount = {
@@ -122,17 +122,17 @@ export async function GET(
               return null;
             }
 
-            const replyProfile = await Profile.findOne({
+            const replyProfile = (await Profile.findOne({
               userId: reply.authorId._id,
             })
               .select("connections")
-              .lean();
+              .lean()) as unknown as Partial<Pick<IProfile, "connections">> | null;
 
-            const replyCompany = await Company.findOne({
+            const replyCompany = (await Company.findOne({
               userId: reply.authorId._id,
             })
               .select("followersCount")
-              .lean();
+              .lean()) as unknown as Partial<Pick<ICompany, "followersCount">> | null;
 
             const replyReactionsCount = {
               like: 0,
@@ -304,7 +304,7 @@ export async function POST(
     // Se for uma resposta, buscar e retornar dados completos da reply
     if (parentId) {
       // Buscar reply com dados completos
-      const reply = await Comment.findById(comment._id)
+      const reply = (await Comment.findById(comment._id)
         .populate("authorId", "name email")
         .populate({
           path: "authorId",
@@ -314,7 +314,24 @@ export async function POST(
             select: "firstName lastName photoUrl connections slug",
           },
         })
-        .lean();
+        .lean()) as unknown as (Partial<IComment> & {
+        authorId: {
+          _id: mongoose.Types.ObjectId;
+          name?: string;
+          email?: string;
+          profile?: {
+            firstName?: string;
+            lastName?: string;
+            photoUrl?: string;
+            connections?: mongoose.Types.ObjectId[];
+            slug?: string;
+          };
+        };
+        reactions?: Array<{
+          userId: mongoose.Types.ObjectId;
+          type: ReactionType;
+        }>;
+      }) | null;
 
       if (!reply || !reply.authorId || !reply.authorId._id) {
         return NextResponse.json(
@@ -324,17 +341,17 @@ export async function POST(
       }
 
       // Buscar perfil e empresa do autor
-      const replyProfile = await Profile.findOne({
+      const replyProfile = (await Profile.findOne({
         userId: reply.authorId._id,
       })
         .select("connections")
-        .lean();
+        .lean()) as unknown as Partial<Pick<IProfile, "connections">> | null;
 
-      const replyCompany = await Company.findOne({
+      const replyCompany = (await Company.findOne({
         userId: reply.authorId._id,
       })
         .select("followersCount")
-        .lean();
+        .lean()) as unknown as Partial<Pick<ICompany, "followersCount">> | null;
 
       // Calcular contagem de reações
       const replyReactionsCount = {
@@ -515,12 +532,16 @@ export async function POST(
     );
   } catch (error) {
     console.error("Create comment error:", error);
-    console.error("Error details:", error.message);
-    console.error("Stack trace:", error.stack);
+    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error("Error details:", errorMessage);
+    if (errorStack) {
+      console.error("Stack trace:", errorStack);
+    }
     return NextResponse.json(
       {
         error: "Erro ao criar comentário",
-        details: error.message,
+        details: errorMessage,
       },
       { status: 500 }
     );

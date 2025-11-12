@@ -61,7 +61,7 @@ export function EditApplicationDrawer({
     setLoading(true);
 
     try {
-      const applicationId = typeof application._id === 'string' ? application._id : application._id.toString();
+      const applicationId = String(application._id);
       const response = await fetch(`/api/admin/applications/${applicationId}`, {
         method: "PUT",
         headers: {

@@ -14,7 +14,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { uploadVideo, validateVideoFile } from "@/lib/cloudinary";
 import { Video, Upload, X } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 interface UploadVideoDialogProps {
   onUploadComplete: (url: string) => void;

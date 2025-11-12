@@ -64,7 +64,7 @@ export function EditUserDrawer({
     setLoading(true);
 
     try {
-      const userId = typeof user._id === 'string' ? user._id : user._id.toString();
+      const userId = String(user._id);
       const body: any = {
         name: formData.name,
         email: formData.email,

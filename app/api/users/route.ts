@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import connectDB from "@/lib/db";
+import mongoose from "mongoose";
 import User from "@/models/User";
 import Profile from "@/models/Profile";
 
@@ -33,10 +34,10 @@ export async function GET(request: NextRequest) {
     // Excluir o próprio usuário
     query._id = { $ne: session.user.id };
 
-    const users = await User.find(query)
-      .select("name email")
+    const users = (await User.find(query)
+      .select("name email _id")
       .limit(limit)
-      .lean();
+      .lean()) as unknown as Array<{ _id: mongoose.Types.ObjectId; name: string; email: string }>;
 
     // Buscar perfis para cada usuário
     const usersWithProfiles = await Promise.all(

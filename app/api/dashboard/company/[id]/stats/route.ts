@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import connectDB from "@/lib/db";
+import mongoose from "mongoose";
+import User from "@/models/User";
 import Company from "@/models/Company";
 import Vacancy from "@/models/Vacancy";
 import Application from "@/models/Application";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -21,10 +23,17 @@ export async function GET(
 
     await connectDB();
 
-    const companyId = params.id;
+    const { id } = await params;
+    const companyId = id;
 
     // Verificar se a empresa existe
-    const company = await Company.findById(companyId).lean();
+    const company = (await Company.findById(companyId).lean()) as unknown as {
+      _id: mongoose.Types.ObjectId;
+      name?: string;
+      logoUrl?: string;
+      admins?: mongoose.Types.ObjectId[];
+      recruiters?: mongoose.Types.ObjectId[];
+    } | null;
     if (!company) {
       return NextResponse.json(
         { error: "Empresa não encontrada" },
@@ -33,15 +42,15 @@ export async function GET(
     }
 
     // Verificar se o usuário é admin do sistema
-    const user = await User.findById(session.user.id).select("role").lean();
+    const user = (await User.findById(session.user.id).select("role").lean()) as unknown as { role?: string } | null;
     const isSystemAdmin = user?.role === "admin";
 
     // Verificar se o usuário é admin ou recrutador da empresa
     const isCompanyAdmin = company.admins?.some(
-      (admin: any) => admin.toString() === session.user.id
+      (admin: mongoose.Types.ObjectId) => admin.toString() === session.user.id
     );
     const isRecruiter = company.recruiters?.some(
-      (recruiter: any) => recruiter.toString() === session.user.id
+      (recruiter: mongoose.Types.ObjectId) => recruiter.toString() === session.user.id
     );
 
     if (!isSystemAdmin && !isCompanyAdmin && !isRecruiter) {
@@ -148,7 +157,7 @@ export async function GET(
 
     return NextResponse.json({
       company: {
-        _id: company._id,
+        _id: company._id.toString(),
         name: company.name,
         logoUrl: company.logoUrl,
       },

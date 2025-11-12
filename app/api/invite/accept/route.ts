@@ -8,7 +8,7 @@ import Invite from "@/models/Invite";
 export async function POST(request: NextRequest) {
   try {
     // Verificar autenticação
-    const session = await getServerSession();
+    const session = await auth();
     if (!session || !session.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }

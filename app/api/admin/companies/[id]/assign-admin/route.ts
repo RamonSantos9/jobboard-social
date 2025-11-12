@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import connectDB from "@/lib/db";
+import mongoose from "mongoose";
 import User from "@/models/User";
 import Company from "@/models/Company";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -23,7 +24,7 @@ export async function POST(
     // Verificar se o usuário é admin do sistema
     const currentUser = await User.findById(session.user.id)
       .select("role")
-      .lean();
+      .lean() as { role?: string } | null;
     if (!currentUser || currentUser.role !== "admin") {
       return NextResponse.json(
         { error: "Acesso negado. Apenas administradores do sistema podem atribuir admins de empresa." },
@@ -31,7 +32,8 @@ export async function POST(
       );
     }
 
-    const companyId = params.id;
+    const { id } = await params;
+    const companyId = id;
     const { userId } = await request.json();
 
     if (!userId) {
@@ -61,7 +63,7 @@ export async function POST(
 
     // Verificar se o usuário já é admin da empresa
     const isAlreadyAdmin = company.admins.some(
-      (adminId) => adminId.toString() === userId
+      (adminId: mongoose.Types.ObjectId) => adminId.toString() === userId
     );
 
     if (isAlreadyAdmin) {
@@ -72,7 +74,7 @@ export async function POST(
     }
 
     // Adicionar usuário como admin
-    company.admins.push(userId as any);
+    company.admins.push(new mongoose.Types.ObjectId(userId));
     await company.save();
 
     return NextResponse.json({

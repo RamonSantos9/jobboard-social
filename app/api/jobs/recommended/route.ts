@@ -4,8 +4,8 @@ import mongoose from "mongoose";
 import connectDB from "@/lib/db";
 // Importar modelos antes de usar
 import Company from "@/models/Company";
-import Vacancy from "@/models/Vacancy";
-import Profile from "@/models/Profile";
+import Vacancy, { IVacancy } from "@/models/Vacancy";
+import Profile, { IProfile } from "@/models/Profile";
 import { calculateJobMatchScore } from "@/lib/jobRecommendation";
 
 export async function GET(request: NextRequest) {
@@ -22,17 +22,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Buscar todas as vagas publicadas
-    const jobs = await Vacancy.find({ status: "published" })
+    const jobs = (await Vacancy.find({ status: "published" })
       .populate("companyId", "name logoUrl location")
       .sort({ publishedAt: -1, createdAt: -1 })
       .lean()
-      .limit(100);
+      .limit(100)) as unknown as Partial<IVacancy>[];
 
     let jobsWithScores;
 
     if (session) {
       // Buscar perfil do usuário
-      const profile = await Profile.findOne({ userId: session.user.id }).lean();
+      const profile = (await Profile.findOne({ userId: session.user.id }).lean()) as unknown as Partial<IProfile> | null;
 
       if (profile) {
         // Calcular scores para cada vaga

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import connectDB from "@/lib/db";
+import mongoose from "mongoose";
 import User from "@/models/User";
 import Company from "@/models/Company";
 import Vacancy from "@/models/Vacancy";
@@ -19,9 +20,9 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    const user = await User.findById(session.user.id)
+    const user = (await User.findById(session.user.id)
       .select("role companyId")
-      .lean();
+      .lean()) as unknown as { role?: string; companyId?: mongoose.Types.ObjectId } | null;
 
     // Se for admin do sistema, retornar erro (deve usar /api/dashboard/stats)
     if (user?.role === "admin") {
@@ -32,12 +33,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Buscar empresas onde o usuário é admin ou recrutador
-    const companies = await Company.find({
+    const companies = (await Company.find({
       $or: [
         { admins: session.user.id },
         { recruiters: session.user.id },
       ],
-    }).lean();
+    }).lean()) as unknown as Array<{
+      _id: mongoose.Types.ObjectId;
+      name?: string;
+      logoUrl?: string;
+    }>;
 
     if (companies.length === 0) {
       return NextResponse.json(

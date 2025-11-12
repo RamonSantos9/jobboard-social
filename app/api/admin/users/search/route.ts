@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import connectDB from "@/lib/db";
+import mongoose from "mongoose";
 import User from "@/models/User";
 
 export async function GET(request: NextRequest) {
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     // Verificar se o usuário é admin
-    const user = await User.findById(session.user.id).select("role").lean();
+    const user = await User.findById(session.user.id).select("role").lean() as { role?: string } | null;
     if (!user || user.role !== "admin") {
       return NextResponse.json(
         { error: "Acesso negado. Apenas administradores podem acessar." },
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ users: [] });
     }
 
-    const users = await User.find({
+    const users = (await User.find({
       $or: [
         { name: { $regex: q, $options: "i" } },
         { email: { $regex: q, $options: "i" } },
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     })
       .select("_id name email")
       .limit(limit)
-      .lean();
+      .lean()) as unknown as Array<{ _id: mongoose.Types.ObjectId; name: string; email: string }>;
 
     return NextResponse.json({
       users: users.map((u) => ({

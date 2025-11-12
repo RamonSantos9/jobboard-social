@@ -85,7 +85,7 @@ export function EditVacancyDrawer({
     setLoading(true);
 
     try {
-      const vacancyId = typeof vacancy._id === 'string' ? vacancy._id : vacancy._id.toString();
+      const vacancyId = String(vacancy._id);
       const salaryRange = formData.salaryMin || formData.salaryMax
         ? {
             min: formData.salaryMin ? parseInt(formData.salaryMin) : undefined,

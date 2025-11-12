@@ -2,6 +2,7 @@ import connectDB from "@/lib/db";
 import { auth } from "@/auth";
 import User from "@/models/User";
 import Company from "@/models/Company";
+import mongoose from "mongoose";
 
 export interface AuthUser {
   id: string;
@@ -24,9 +25,16 @@ export async function requireAuth(): Promise<AuthUser> {
 
   await connectDB();
 
-  const user = await User.findById(session.user.id)
+  const user = (await User.findById(session.user.id)
     .select("_id email name role companyId isRecruiter")
-    .lean();
+    .lean()) as unknown as {
+    _id: mongoose.Types.ObjectId;
+    email: string;
+    name?: string;
+    role?: "user" | "admin";
+    companyId?: mongoose.Types.ObjectId;
+    isRecruiter?: boolean;
+  } | null;
 
   if (!user) {
     throw new Error("Usuário não encontrado");
@@ -70,19 +78,23 @@ export async function requireCompanyAdmin(
 
   await connectDB();
 
-  const company = await Company.findById(companyId)
+  const company = (await Company.findById(companyId)
     .select("admins recruiters")
-    .lean();
+    .lean()) as unknown as {
+    _id: mongoose.Types.ObjectId;
+    admins?: mongoose.Types.ObjectId[];
+    recruiters?: mongoose.Types.ObjectId[];
+  } | null;
 
   if (!company) {
     throw new Error("Empresa não encontrada");
   }
 
   const isAdmin = company.admins?.some(
-    (admin: any) => admin.toString() === user.id
+    (admin: mongoose.Types.ObjectId) => admin.toString() === user.id
   );
   const isRecruiter = company.recruiters?.some(
-    (recruiter: any) => recruiter.toString() === user.id
+    (recruiter: mongoose.Types.ObjectId) => recruiter.toString() === user.id
   );
 
   if (!isAdmin && !isRecruiter) {
@@ -114,19 +126,23 @@ export async function requireCompanyAccess(
 
   await connectDB();
 
-  const company = await Company.findById(companyId)
+  const company = (await Company.findById(companyId)
     .select("admins recruiters")
-    .lean();
+    .lean()) as unknown as {
+    _id: mongoose.Types.ObjectId;
+    admins?: mongoose.Types.ObjectId[];
+    recruiters?: mongoose.Types.ObjectId[];
+  } | null;
 
   if (!company) {
     throw new Error("Empresa não encontrada");
   }
 
   const isAdmin = company.admins?.some(
-    (admin: any) => admin.toString() === user.id
+    (admin: mongoose.Types.ObjectId) => admin.toString() === user.id
   );
   const isRecruiter = company.recruiters?.some(
-    (recruiter: any) => recruiter.toString() === user.id
+    (recruiter: mongoose.Types.ObjectId) => recruiter.toString() === user.id
   );
 
   if (!isAdmin && !isRecruiter) {

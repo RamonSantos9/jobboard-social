@@ -4,12 +4,13 @@ import Vacancy from "@/models/Vacancy";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
 
-    const job = await Vacancy.findById(params.id)
+    const { id } = await params;
+    const job = await Vacancy.findById(id)
       .populate("companyId", "name logoUrl description location industry size")
       .lean();
 
@@ -21,7 +22,7 @@ export async function GET(
     }
 
     // Incrementar contador de visualizações
-    await Vacancy.findByIdAndUpdate(params.id, {
+    await Vacancy.findByIdAndUpdate(id, {
       $inc: { viewsCount: 1 },
     });
 

@@ -9,10 +9,11 @@ async function translateToPortuguese(text: string): Promise<string> {
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+  
   try {
-    const { id } = params;
 
     // Buscar artigo específico da Dev.to API
     const response = await fetch(`https://dev.to/api/articles/${id}`, {
@@ -62,7 +63,7 @@ export async function GET(
 
     // Fallback com notícia estática em caso de erro
     const fallbackNews = {
-      id: parseInt(params.id),
+      id: parseInt(id),
       title: "As 20 Top Startups de 2025 no Brasil",
       description:
         "Descubra as startups mais promissoras do Brasil em 2025 e suas inovações tecnológicas que estão transformando o mercado.",

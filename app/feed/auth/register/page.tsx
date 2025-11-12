@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AlertCircle } from "lucide-react";
 
-export default function RegisterPage() {
+function RegisterPageContent() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -222,5 +222,21 @@ export default function RegisterPage() {
         </div>
       </form>
     </section>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <section className="flex min-h-screen px-4 py-16 md:py-32">
+        <div className="bg-card m-auto h-fit w-full max-w-sm rounded-[calc(var(--radius)+.125rem)] border p-8 shadow-md">
+          <div className="flex items-center justify-center">
+            <p>Carregando...</p>
+          </div>
+        </div>
+      </section>
+    }>
+      <RegisterPageContent />
+    </Suspense>
   );
 }

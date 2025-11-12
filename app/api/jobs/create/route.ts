@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import connectDB from "@/lib/db";
+import mongoose from "mongoose";
 import Company from "@/models/Company";
-import Vacancy, { vacancyLevelSalaryBands } from "@/models/Vacancy";
+import Vacancy, { vacancyLevelSalaryBands, type VacancyLevel } from "@/models/Vacancy";
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,12 +43,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!vacancyLevelSalaryBands[level]) {
+    // Validar e tipar o nível
+    const validLevels: VacancyLevel[] = ["junior", "mid", "senior", "lead", "executive"];
+    if (!validLevels.includes(level as VacancyLevel)) {
       return NextResponse.json(
         { error: "Nível informado é inválido" },
         { status: 400 }
       );
     }
+
+    const typedLevel = level as VacancyLevel;
 
     // Verificar se a empresa existe e se o usuário tem permissão
     const company = await Company.findById(companyId);
@@ -60,10 +65,10 @@ export async function POST(request: NextRequest) {
 
     // Verificar se o usuário é admin ou recrutador da empresa
     const isAdmin = company.admins.some(
-      (admin: any) => admin.toString() === session.user.id
+      (admin: mongoose.Types.ObjectId) => admin.toString() === session.user.id
     );
     const isRecruiter = company.recruiters.some(
-      (recruiter: any) => recruiter.toString() === session.user.id
+      (recruiter: mongoose.Types.ObjectId) => recruiter.toString() === session.user.id
     );
 
     if (!isAdmin && !isRecruiter) {
@@ -78,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     let salaryRange;
     if (typeof salaryMin === "number" || typeof salaryMax === "number") {
-      const band = vacancyLevelSalaryBands[level];
+      const band = vacancyLevelSalaryBands[typedLevel];
       const min = typeof salaryMin === "number" ? salaryMin : band.min;
       const max = typeof salaryMax === "number" ? salaryMax : band.max;
 
@@ -92,7 +97,7 @@ export async function POST(request: NextRequest) {
       if (min < band.min || max > band.max) {
         return NextResponse.json(
           {
-            error: `Faixa salarial deve estar entre R$${band.min} e R$${band.max} para o nível ${level}`,
+            error: `Faixa salarial deve estar entre R$${band.min} e R$${band.max} para o nível ${typedLevel}`,
           },
           { status: 400 }
         );
@@ -120,7 +125,7 @@ export async function POST(request: NextRequest) {
       location,
       remote,
       type: jobType,
-      level,
+      level: typedLevel,
       category: company.industry || "Tecnologia",
       status: "published",
       publishedAt: new Date(),

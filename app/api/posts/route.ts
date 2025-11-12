@@ -3,10 +3,10 @@ import mongoose from "mongoose";
 import { auth } from "@/auth";
 import connectDB from "@/lib/db";
 import Post from "@/models/Post";
-import Profile from "@/models/Profile";
+import Profile, { IProfile } from "@/models/Profile";
 import User from "@/models/User";
-import Vacancy from "@/models/Vacancy";
-import Company from "@/models/Company";
+import Vacancy, { IVacancy } from "@/models/Vacancy";
+import Company, { ICompany } from "@/models/Company";
 import Comment from "@/models/Comment";
 import Notification from "@/models/Notification";
 import Connection from "@/models/Connection";
@@ -47,9 +47,9 @@ export async function GET(request: NextRequest) {
         // Buscar perfis separadamente para evitar problemas de populate aninhado
     const postsWithProfiles = await Promise.all(
       posts.map(async (post) => {
-        const profile = await Profile.findOne({ userId: post.authorId._id })
+        const profile = (await Profile.findOne({ userId: post.authorId._id })
           .select("firstName lastName photoUrl headline slug")
-          .lean();
+          .lean()) as unknown as Partial<Pick<IProfile, "firstName" | "lastName" | "photoUrl" | "headline" | "slug">> | null;
 
         // Verificar se o usuário atual está seguindo o autor do post
         let isFollowingAuthor = false;
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
         
         // Também verificar se o autor do post tem uma empresa e se o usuário está seguindo essa empresa
         if (userId && !isFollowingCompany) {
-          const authorUser = await User.findById(post.authorId._id).select("companyId").lean();
+          const authorUser = (await User.findById(post.authorId._id).select("companyId").lean()) as unknown as Partial<{ _id: mongoose.Types.ObjectId; companyId?: mongoose.Types.ObjectId }> | null;
           if (authorUser?.companyId) {
             const authorCompanyConnection = await Connection.findOne({
               followerId: userId,
@@ -117,10 +117,10 @@ export async function GET(request: NextRequest) {
 
               // Buscar dados do usuário ou empresa
               if (reaction.userId) {
-                const user = await User.findById(reaction.userId).select("name email").lean();
-                const userProfile = await Profile.findOne({ userId: reaction.userId })
+                const user = (await User.findById(reaction.userId).select("name email").lean()) as unknown as Partial<{ _id: mongoose.Types.ObjectId; name?: string; email?: string }> | null;
+                const userProfile = (await Profile.findOne({ userId: reaction.userId })
                   .select("firstName lastName photoUrl slug followersCount")
-                  .lean();
+                  .lean()) as unknown as Partial<Pick<IProfile, "firstName" | "lastName" | "photoUrl" | "slug">> & { followersCount?: number } | null;
 
                 // Verificar se o usuário atual segue quem reagiu
                 let isFollowing = false;
@@ -152,9 +152,9 @@ export async function GET(request: NextRequest) {
                 reactionData.isFollowing = isFollowing;
                 reactionData.followersCount = userProfile?.followersCount || 0;
               } else if (reaction.companyId) {
-                const company = await Company.findById(reaction.companyId)
+                const company = (await Company.findById(reaction.companyId)
                   .select("name logoUrl followersCount")
-                  .lean();
+                  .lean()) as unknown as Partial<Pick<ICompany, "name" | "logoUrl" | "followersCount">> & { _id?: mongoose.Types.ObjectId } | null;
 
                 // Verificar se o usuário atual segue a empresa que reagiu
                 let isFollowing = false;
@@ -221,7 +221,7 @@ export async function GET(request: NextRequest) {
 
         // Manter compatibilidade com likes antigos
         const likes = post.likes || [];
-        const isLiked = userId ? likes.includes(userId) : false;
+        const isLiked = userId ? likes.some((likeId: mongoose.Types.ObjectId) => likeId.toString() === userId.toString()) : false;
 
         // Contar comentários reais do banco
         const commentsCount = await Comment.countDocuments({ postId: post._id });
@@ -258,14 +258,14 @@ export async function GET(request: NextRequest) {
 
     // Se usuário está logado, adicionar vagas recomendadas
     const userProfile = session
-      ? await Profile.findOne({ userId: session.user.id }).lean()
+      ? (await Profile.findOne({ userId: session.user.id }).lean()) as unknown as Partial<IProfile> | null
       : null;
 
-    const vacanciesRaw = await Vacancy.find({ status: "published" })
+    const vacanciesRaw = (await Vacancy.find({ status: "published" })
       .populate("companyId", "name logoUrl location")
       .sort({ publishedAt: -1, createdAt: -1 })
       .limit(10)
-      .lean();
+      .lean()) as unknown as Partial<IVacancy>[];
 
     const vacancies = vacanciesRaw.map((vacancy) => {
       const match = userProfile
@@ -526,11 +526,11 @@ export async function POST(request: NextRequest) {
     );
 
     // Buscar perfil separadamente
-    const profile = await Profile.findOne({
+    const profile = (await Profile.findOne({
       userId: populatedPost.authorId._id,
     })
       .select("firstName lastName photoUrl headline slug")
-      .lean();
+      .lean()) as unknown as Partial<Pick<IProfile, "firstName" | "lastName" | "photoUrl" | "headline" | "slug">> | null;
 
     const postWithProfile = {
       ...populatedPost.toObject(),
@@ -546,12 +546,16 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Post creation error:", error);
-    console.error("Error details:", error.message);
-    console.error("Stack trace:", error.stack);
+    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error("Error details:", errorMessage);
+    if (errorStack) {
+      console.error("Stack trace:", errorStack);
+    }
     return NextResponse.json(
       {
         error: "Erro ao criar post",
-        details: error.message,
+        details: errorMessage,
       },
       { status: 500 }
     );

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import connectDB from "@/lib/db";
-import Post from "@/models/Post";
+import mongoose from "mongoose";
+import Post, { IPost } from "@/models/Post";
 import Comment from "@/models/Comment";
-import Profile from "@/models/Profile";
+import Profile, { IProfile } from "@/models/Profile";
 import User from "@/models/User";
-import Company from "@/models/Company";
+import Company, { ICompany } from "@/models/Company";
 import Connection from "@/models/Connection";
 
 export async function GET(
@@ -18,9 +19,26 @@ export async function GET(
     const session = await auth();
     const userId = session?.user?.id;
 
-    const post = await Post.findById(id)
+    const post = (await Post.findById(id)
       .populate("authorId", "email name")
-      .lean();
+      .lean()) as unknown as (Partial<IPost> & {
+      _id: mongoose.Types.ObjectId;
+      authorId: {
+        _id: mongoose.Types.ObjectId;
+        email?: string;
+        name?: string;
+      };
+      reactions?: Array<{
+        userId?: mongoose.Types.ObjectId;
+        companyId?: mongoose.Types.ObjectId;
+        type: string;
+      }>;
+      likes?: mongoose.Types.ObjectId[];
+      sharesCount?: number;
+      mediaUrl?: string;
+      mediaType?: "image" | "video";
+      mediaUrls?: string[];
+    }) | null;
 
     if (!post) {
       return NextResponse.json(
@@ -30,9 +48,9 @@ export async function GET(
     }
 
     // Buscar perfil do autor
-    const profile = await Profile.findOne({ userId: post.authorId._id })
+    const profile = (await Profile.findOne({ userId: post.authorId._id })
       .select("firstName lastName photoUrl headline slug")
-      .lean();
+      .lean()) as unknown as Partial<Pick<IProfile, "firstName" | "lastName" | "photoUrl" | "headline" | "slug">> | null;
 
     // Verificar se o usuário atual está seguindo o autor
     let isFollowingAuthor = false;
@@ -66,10 +84,10 @@ export async function GET(
         let reactionData: any = { type: reaction.type };
 
         if (reaction.userId) {
-          const user = await User.findById(reaction.userId).select("name email").lean();
-          const userProfile = await Profile.findOne({ userId: reaction.userId })
+          const user = (await User.findById(reaction.userId).select("name email").lean()) as unknown as Partial<{ _id: mongoose.Types.ObjectId; name?: string; email?: string }> | null;
+          const userProfile = (await Profile.findOne({ userId: reaction.userId })
             .select("firstName lastName photoUrl slug followersCount")
-            .lean();
+            .lean()) as unknown as Partial<Pick<IProfile, "firstName" | "lastName" | "photoUrl" | "slug">> & { followersCount?: number } | null;
 
           let isFollowing = false;
           if (userId) {
@@ -100,9 +118,9 @@ export async function GET(
           reactionData.isFollowing = isFollowing;
           reactionData.followersCount = userProfile?.followersCount || 0;
         } else if (reaction.companyId) {
-          const company = await Company.findById(reaction.companyId)
+          const company = (await Company.findById(reaction.companyId)
             .select("name logoUrl followersCount")
-            .lean();
+            .lean()) as unknown as Partial<Pick<ICompany, "name" | "logoUrl" | "followersCount">> & { _id?: mongoose.Types.ObjectId } | null;
 
           let isFollowing = false;
           if (userId) {
@@ -153,7 +171,7 @@ export async function GET(
     const isSuggestion = userId && !isFollowingAuthor && !isPostAuthor;
 
     const likes = post.likes || [];
-    const isLiked = userId ? likes.includes(userId) : false;
+    const isLiked = userId ? likes.some((likeId: mongoose.Types.ObjectId) => likeId.toString() === userId.toString()) : false;
     const commentsCount = await Comment.countDocuments({ postId: post._id });
     const sharesCount = post.sharesCount || 0;
 
@@ -231,11 +249,12 @@ export async function DELETE(
     });
   } catch (error) {
     console.error("Delete post error:", error);
-    console.error("Error details:", error.message);
+    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+    console.error("Error details:", errorMessage);
     return NextResponse.json(
       {
         error: "Erro ao deletar post",
-        details: error.message,
+        details: errorMessage,
       },
       { status: 500 }
     );

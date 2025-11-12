@@ -1367,9 +1367,9 @@ async function seedDatabase() {
     console.log(`Total de vagas no banco: ${totalVacancies.toLocaleString()}`);
 
     // Buscar IDs de todas as vagas criadas
-    const allVacancies = await Vacancy.find({ status: "published" })
+    const allVacancies = (await Vacancy.find({ status: "published" })
       .select("_id")
-      .lean();
+      .lean()) as unknown as Array<{ _id: mongoose.Types.ObjectId }>;
     const vacancyIds = allVacancies.map((v) => v._id);
 
     // Criar 10.000 usuários

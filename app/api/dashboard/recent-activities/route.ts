@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     // Verificar se o usuário é admin
-    const user = await User.findById(session.user.id).select("role").lean();
+    const user = await User.findById(session.user.id).select("role").lean() as { role?: string } | null;
     if (!user || user.role !== "admin") {
       console.log(`Acesso negado para usuário ${session.user.id}: role=${user?.role}`);
       return NextResponse.json(

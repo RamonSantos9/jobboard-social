@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import connectDB from "@/lib/db";
+import mongoose from "mongoose";
 import Application from "@/models/Application";
 import Company from "@/models/Company";
 import Vacancy from "@/models/Vacancy";
@@ -66,16 +67,21 @@ export async function POST(request: NextRequest) {
 
     // Notificar recrutadores da empresa
     if (job.companyId) {
-      const company = await Company.findById(job.companyId)
+      const company = (await Company.findById(job.companyId)
         .select("name recruiters admins")
-        .lean();
+        .lean()) as unknown as {
+        _id: mongoose.Types.ObjectId;
+        name?: string;
+        recruiters?: mongoose.Types.ObjectId[];
+        admins?: mongoose.Types.ObjectId[];
+      } | null;
 
       if (company) {
         const recipients = new Set<string>();
-        (company.recruiters || []).forEach((recruiter: any) =>
+        (company.recruiters || []).forEach((recruiter: mongoose.Types.ObjectId) =>
           recipients.add(recruiter.toString())
         );
-        (company.admins || []).forEach((admin: any) =>
+        (company.admins || []).forEach((admin: mongoose.Types.ObjectId) =>
           recipients.add(admin.toString())
         );
 
@@ -91,7 +97,7 @@ export async function POST(request: NextRequest) {
               link: `/jobs/${jobId}`,
               relatedUserId: session.user.id,
               metadata: {
-                companyId: company._id,
+                companyId: company._id.toString(),
               },
             })
           )
