@@ -27,7 +27,7 @@ export async function POST(
       .lean() as { role?: string } | null;
     if (!currentUser || currentUser.role !== "admin") {
       return NextResponse.json(
-        { error: "Acesso negado. Apenas administradores do sistema podem atribuir admins de empresa." },
+        { error: "Acesso negado. Apenas administradores do sistema podem remover admins de empresa." },
         { status: 403 }
       );
     }
@@ -70,8 +70,8 @@ export async function POST(
     }
 
     // Verificar se o usuário existe
-    const userToAssign = await User.findById(userId);
-    if (!userToAssign) {
+    const userToRemove = await User.findById(userId);
+    if (!userToRemove) {
       return NextResponse.json(
         { error: "Usuário não encontrado" },
         { status: 404 }
@@ -81,29 +81,47 @@ export async function POST(
     // Converter userId para ObjectId
     const userIdObjectId = new mongoose.Types.ObjectId(userId);
 
-    // Verificar se o usuário já é admin da empresa
-    const isAlreadyAdmin = company.admins.some(
+    // Verificar se o usuário é admin da empresa
+    const isAdmin = company.admins.some(
       (adminId: mongoose.Types.ObjectId) => adminId.toString() === userId
     );
 
-    if (isAlreadyAdmin) {
+    if (!isAdmin) {
       return NextResponse.json(
-        { error: "Usuário já é admin desta empresa" },
+        { error: "Usuário não é admin desta empresa" },
         { status: 400 }
       );
     }
 
-    // Adicionar usuário como admin usando $addToSet para evitar duplicatas
+    // Verificar se é o último admin (não permitir remover se for o último)
+    if (company.admins.length === 1) {
+      return NextResponse.json(
+        { error: "Não é possível remover o último admin da empresa. A empresa deve ter pelo menos um admin." },
+        { status: 400 }
+      );
+    }
+
+    // Remover usuário dos admins usando $pull
     await Company.findByIdAndUpdate(
       companyId,
       {
-        $addToSet: { 
-          admins: userIdObjectId,
-          recruiters: userIdObjectId
+        $pull: { 
+          admins: userIdObjectId
         }
       },
-      { new: true, runValidators: false } // runValidators: false para evitar validação de campos obrigatórios
+      { new: true, runValidators: false }
     );
+
+    // Remover também dos recrutadores se estiver lá (opcional - pode manter como recrutador)
+    // await Company.findByIdAndUpdate(
+    //   companyId,
+    //   {
+    //     $pull: { 
+    //       recruiters: userIdObjectId
+    //     }
+    //   },
+    //   { new: true, runValidators: false }
+    // );
 
     // Buscar empresa atualizada com dados populados
     const updatedCompany = await Company.findById(companyId)
@@ -120,14 +138,14 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: `${userToAssign.name} foi adicionado como admin da empresa ${company.name}`,
+      message: `${userToRemove.name} foi removido como admin da empresa ${company.name}`,
       company: updatedCompany,
     });
   } catch (error: any) {
-    console.error("Assign admin error:", error);
+    console.error("Remove admin error:", error);
     return NextResponse.json(
       { 
-        error: "Erro ao atribuir admin",
+        error: "Erro ao remover admin",
         message: error.message || "Erro desconhecido",
         details: error.stack 
       },

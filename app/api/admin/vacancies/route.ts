@@ -4,6 +4,7 @@ import connectDB from "@/lib/db";
 import User from "@/models/User";
 import Vacancy from "@/models/Vacancy";
 import Company from "@/models/Company";
+import Application from "@/models/Application";
 
 export async function GET(request: NextRequest) {
   try {
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     const [vacancies, total] = await Promise.all([
       Vacancy.find(query)
-        .select("title status applicationsCount viewsCount createdAt companyId postedBy")
+        .select("title description location remote type level category salaryRange requirements responsibilities benefits skills tags status applicationsCount viewsCount createdAt companyId postedBy _id")
         .populate("companyId", "name logoUrl")
         .populate("postedBy", "name email")
         .sort({ createdAt: -1 })
@@ -55,8 +56,38 @@ export async function GET(request: NextRequest) {
       Vacancy.countDocuments(query),
     ]);
 
+    // Calcular applicationsCount real para cada vaga
+    const vacancyIds = vacancies.map((v: any) => v._id);
+    const applicationsCounts = await Application.aggregate([
+      {
+        $match: {
+          jobId: { $in: vacancyIds },
+        },
+      },
+      {
+        $group: {
+          _id: "$jobId",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Criar um mapa de jobId -> count
+    const applicationsMap = new Map(
+      applicationsCounts.map((item: any) => [
+        item._id.toString(),
+        item.count,
+      ])
+    );
+
+    // Atualizar applicationsCount com valores reais
+    const vacanciesWithRealCounts = vacancies.map((vacancy: any) => ({
+      ...vacancy,
+      applicationsCount: applicationsMap.get(vacancy._id.toString()) || 0,
+    }));
+
     return NextResponse.json({
-      vacancies,
+      vacancies: vacanciesWithRealCounts,
       total,
       page,
       limit,

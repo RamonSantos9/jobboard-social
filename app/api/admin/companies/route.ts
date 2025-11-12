@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import connectDB from "@/lib/db";
+import mongoose from "mongoose";
 import User from "@/models/User";
 import Company from "@/models/Company";
+import Vacancy from "@/models/Vacancy";
+import Connection from "@/models/Connection";
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,9 +45,9 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const [companies, total] = await Promise.all([
+    const [companiesRaw, total] = await Promise.all([
       Company.find(query)
-        .select("name cnpj industry isVerified jobsCount followersCount createdAt admins recruiters")
+        .select("name cnpj industry isVerified createdAt admins recruiters _id")
         .populate("admins", "name email")
         .populate("recruiters", "name email")
         .sort({ createdAt: -1 })
@@ -53,6 +56,37 @@ export async function GET(request: NextRequest) {
         .lean(),
       Company.countDocuments(query),
     ]);
+
+    // Calcular jobsCount e followersCount dinamicamente
+    const companies = await Promise.all(
+      companiesRaw.map(async (company: any) => {
+        // Converter _id para ObjectId se necessário para as queries
+        const companyId = typeof company._id === "string" 
+          ? new mongoose.Types.ObjectId(company._id)
+          : company._id;
+        
+        // Contar vagas reais (todas as vagas da empresa, independente do status)
+        const jobsCount = await Vacancy.countDocuments({
+          companyId: companyId,
+        });
+
+        // Contar seguidores reais usando o modelo Connection
+        // Connection.type === "company", followingId === company._id e status === "accepted"
+        // Também verificar typeModel === "Company"
+        const followersCount = await Connection.countDocuments({
+          followingId: companyId,
+          type: "company",
+          typeModel: "Company",
+          status: "accepted",
+        });
+
+        return {
+          ...company,
+          jobsCount: jobsCount || 0,
+          followersCount: followersCount || 0,
+        };
+      })
+    );
 
     return NextResponse.json({
       companies,

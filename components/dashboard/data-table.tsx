@@ -33,6 +33,8 @@ import {
   IconLoader,
   IconPlus,
   IconTrendingUp,
+  IconX,
+  IconArrowUp,
 } from "@tabler/icons-react";
 import {
   type ColumnDef,
@@ -60,7 +62,6 @@ import { EditUserDrawer } from "@/components/admin/edit-user-drawer";
 import { CreateVacancyDrawer } from "@/components/admin/create-vacancy-drawer";
 import { EditVacancyDrawer } from "@/components/admin/edit-vacancy-drawer";
 import { CreateApplicationDrawer } from "@/components/admin/create-application-drawer";
-import { EditApplicationDrawer } from "@/components/admin/edit-application-drawer";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
@@ -364,6 +365,10 @@ export function DataTable({
     [data]
   );
 
+  // Estado para aba ativa (deve estar antes dos useEffects que o usam)
+  const defaultTab = mode === "admin" ? "empresas" : "atividades";
+  const [activeTab, setActiveTab] = React.useState(defaultTab);
+
   const table = useReactTable({
     data,
     columns,
@@ -417,11 +422,51 @@ export function DataTable({
     return filteredData.filter((d: any) => d.tipoSecao === "Empresa");
   }, [filteredData]);
 
-  // Dados formatados para modo admin
+  // Estados para paginação server-side de empresas
+  const [companiesPage, setCompaniesPage] = React.useState(1);
+  const [companiesPageSize, setCompaniesPageSize] = React.useState(10);
+  const [companiesTotal, setCompaniesTotal] = React.useState(0);
+  const [companiesLoading, setCompaniesLoading] = React.useState(false);
+  const [allCompanies, setAllCompanies] = React.useState<any[]>([]);
+  const [companiesRefreshKey, setCompaniesRefreshKey] = React.useState(0);
+
+  // Função para buscar empresas com paginação server-side
+  const fetchCompanies = React.useCallback(async () => {
+    if (mode === "admin" && activeTab === "empresas") {
+      setCompaniesLoading(true);
+      try {
+        const response = await fetch(
+          `/api/admin/companies?page=${companiesPage}&limit=${companiesPageSize}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setAllCompanies(data.companies || []);
+          setCompaniesTotal(data.total || 0);
+        } else {
+          console.error("Erro ao buscar empresas:", await response.json());
+        }
+      } catch (error) {
+        console.error("Erro ao buscar empresas:", error);
+      } finally {
+        setCompaniesLoading(false);
+      }
+    }
+  }, [mode, activeTab, companiesPage, companiesPageSize]);
+
+  // Buscar empresas quando necessário
+  React.useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies, companiesRefreshKey]);
+
+  // Dados formatados para modo admin (usar allCompanies se disponível, senão companies)
   const adminCompaniesData = React.useMemo(() => {
-    if (!companies) return [];
-    return companies.map((company: any, index: number) => ({
-      id: index + 1,
+    const companiesToUse =
+      mode === "admin" && activeTab === "empresas" && allCompanies.length > 0
+        ? allCompanies
+        : companies || [];
+
+    return companiesToUse.map((company: any, index: number) => ({
+      id: (companiesPage - 1) * companiesPageSize + index + 1,
       _id:
         typeof company._id === "string"
           ? company._id
@@ -431,17 +476,176 @@ export function DataTable({
       statusSecao: company.isVerified ? "Verificada" : "Não verificada",
       meta: company.jobsCount?.toString() || "0",
       limite: company.followersCount?.toString() || "0",
-      revisor: company.admins?.[0]?.name || "N/A",
+      revisor: company.admins?.[0]?.name || company.admins?.[0]?.email || "N/A",
       data: company.createdAt,
       tipo: "empresa",
       company: company,
     }));
-  }, [companies]);
+  }, [
+    companies,
+    allCompanies,
+    mode,
+    activeTab,
+    companiesPage,
+    companiesPageSize,
+  ]);
+
+  // Estados para paginação server-side de usuarios
+  const [usersPage, setUsersPage] = React.useState(1);
+  const [usersPageSize, setUsersPageSize] = React.useState(10);
+  const [usersTotal, setUsersTotal] = React.useState(0);
+  const [usersLoading, setUsersLoading] = React.useState(false);
+  const [allUsers, setAllUsers] = React.useState<any[]>([]);
+  const [usersRefreshKey, setUsersRefreshKey] = React.useState(0);
+
+  // Estados para paginação server-side de vagas
+  const [vacanciesPage, setVacanciesPage] = React.useState(1);
+  const [vacanciesPageSize, setVacanciesPageSize] = React.useState(10);
+  const [vacanciesTotal, setVacanciesTotal] = React.useState<number | null>(
+    null
+  );
+  const [vacanciesLoading, setVacanciesLoading] = React.useState(false);
+  const [allVacancies, setAllVacancies] = React.useState<any[]>([]);
+  const [vacanciesRefreshKey, setVacanciesRefreshKey] = React.useState(0);
+
+  // Estados para paginação server-side de candidaturas
+  const [applicationsPage, setApplicationsPage] = React.useState(1);
+  const [applicationsPageSize, setApplicationsPageSize] = React.useState(10);
+  const [applicationsTotal, setApplicationsTotal] = React.useState<
+    number | null
+  >(null);
+  const [applicationsLoading, setApplicationsLoading] = React.useState(false);
+  const [allApplications, setAllApplications] = React.useState<any[]>([]);
+  const [applicationsRefreshKey, setApplicationsRefreshKey] = React.useState(0);
+
+  // Função para buscar usuarios com paginação server-side
+  const fetchUsers = React.useCallback(async () => {
+    if (mode === "admin" && activeTab === "usuarios") {
+      setUsersLoading(true);
+      try {
+        const response = await fetch(
+          `/api/admin/users?page=${usersPage}&limit=${usersPageSize}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setAllUsers(data.users || []);
+          setUsersTotal(data.total || 0);
+        } else {
+          console.error("Erro ao buscar usuarios:", await response.json());
+        }
+      } catch (error) {
+        console.error("Erro ao buscar usuarios:", error);
+      } finally {
+        setUsersLoading(false);
+      }
+    }
+  }, [mode, activeTab, usersPage, usersPageSize]);
+
+  // Função para buscar total de vagas (apenas o total, sem dados)
+  const fetchVacanciesTotal = React.useCallback(async () => {
+    if (mode === "admin") {
+      try {
+        const response = await fetch(`/api/admin/vacancies?page=1&limit=1`);
+        if (response.ok) {
+          const data = await response.json();
+          setVacanciesTotal(data.total || 0);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar total de vagas:", error);
+      }
+    }
+  }, [mode]);
+
+  // Função para buscar vagas com paginação server-side
+  const fetchVacancies = React.useCallback(async () => {
+    if (mode === "admin" && activeTab === "vagas") {
+      setVacanciesLoading(true);
+      try {
+        const response = await fetch(
+          `/api/admin/vacancies?page=${vacanciesPage}&limit=${vacanciesPageSize}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setAllVacancies(data.vacancies || []);
+          setVacanciesTotal(data.total || 0);
+        } else {
+          console.error("Erro ao buscar vagas:", await response.json());
+        }
+      } catch (error) {
+        console.error("Erro ao buscar vagas:", error);
+      } finally {
+        setVacanciesLoading(false);
+      }
+    }
+  }, [mode, activeTab, vacanciesPage, vacanciesPageSize]);
+
+  // Função para buscar total de candidaturas (apenas o total, sem dados)
+  const fetchApplicationsTotal = React.useCallback(async () => {
+    if (mode === "admin") {
+      try {
+        const response = await fetch(`/api/admin/applications?page=1&limit=1`);
+        if (response.ok) {
+          const data = await response.json();
+          setApplicationsTotal(data.total || 0);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar total de candidaturas:", error);
+      }
+    }
+  }, [mode]);
+
+  // Função para buscar candidaturas com paginação server-side
+  const fetchApplications = React.useCallback(async () => {
+    if (mode === "admin" && activeTab === "candidaturas") {
+      setApplicationsLoading(true);
+      try {
+        const response = await fetch(
+          `/api/admin/applications?page=${applicationsPage}&limit=${applicationsPageSize}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setAllApplications(data.applications || []);
+          setApplicationsTotal(data.total || 0);
+        } else {
+          console.error("Erro ao buscar candidaturas:", await response.json());
+        }
+      } catch (error) {
+        console.error("Erro ao buscar candidaturas:", error);
+      } finally {
+        setApplicationsLoading(false);
+      }
+    }
+  }, [mode, activeTab, applicationsPage, applicationsPageSize]);
+
+  // Buscar totais quando o modo admin estiver ativo ou quando a aba mudar
+  React.useEffect(() => {
+    if (mode === "admin") {
+      fetchVacanciesTotal();
+      fetchApplicationsTotal();
+    }
+  }, [mode, activeTab, fetchVacanciesTotal, fetchApplicationsTotal]);
+
+  // Buscar dados quando necessário
+  React.useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers, usersRefreshKey]);
+
+  React.useEffect(() => {
+    fetchVacancies();
+  }, [fetchVacancies, vacanciesRefreshKey]);
+
+  React.useEffect(() => {
+    fetchApplications();
+  }, [fetchApplications, applicationsRefreshKey]);
 
   const adminUsersData = React.useMemo(() => {
-    if (!users) return [];
-    return users.map((user: any, index: number) => ({
-      id: index + 1,
+    const usersToUse =
+      mode === "admin" && activeTab === "usuarios" && allUsers.length > 0
+        ? allUsers
+        : users || [];
+
+    return usersToUse.map((user: any, index: number) => ({
+      id: (usersPage - 1) * usersPageSize + index + 1,
       _id: user._id,
       empresa: user.name || user.email,
       tipoSecao: "Usuário",
@@ -453,34 +657,110 @@ export function DataTable({
       tipo: "usuario",
       user: user,
     }));
-  }, [users]);
+  }, [users, allUsers, mode, activeTab, usersPage, usersPageSize]);
 
-  const defaultTab = mode === "admin" ? "empresas" : "atividades";
-  const [activeTab, setActiveTab] = React.useState(defaultTab);
+  // Dados formatados para vagas no modo admin
+  const adminVacanciesData = React.useMemo(() => {
+    const vacanciesToUse =
+      mode === "admin" && activeTab === "vagas" && allVacancies.length > 0
+        ? allVacancies
+        : vacancies || [];
+
+    return vacanciesToUse.map((vacancy: any, index: number) => ({
+      id: (vacanciesPage - 1) * vacanciesPageSize + index + 1,
+      _id: vacancy._id,
+      empresa: vacancy.companyId?.name || "N/A",
+      tipoSecao: "Vaga",
+      statusSecao: vacancy.status || "draft",
+      meta: vacancy.applicationsCount?.toString() || "0",
+      limite: vacancy.viewsCount?.toString() || "0",
+      revisor: vacancy.postedBy?.name || vacancy.postedBy?.email || "N/A",
+      data: vacancy.createdAt,
+      tipo: "vaga",
+      vacancy: vacancy,
+    }));
+  }, [
+    vacancies,
+    allVacancies,
+    mode,
+    activeTab,
+    vacanciesPage,
+    vacanciesPageSize,
+  ]);
+
+  // Dados formatados para candidaturas no modo admin
+  const adminApplicationsData = React.useMemo(() => {
+    const applicationsToUse =
+      mode === "admin" &&
+      activeTab === "candidaturas" &&
+      allApplications.length > 0
+        ? allApplications
+        : applications || [];
+
+    return applicationsToUse.map((application: any, index: number) => ({
+      id: (applicationsPage - 1) * applicationsPageSize + index + 1,
+      _id: application._id,
+      empresa: application.jobId?.title || "N/A",
+      tipoSecao: "Candidatura",
+      statusSecao: application.status || "pending",
+      meta:
+        application.candidateId?.name ||
+        application.candidateId?.email ||
+        "N/A",
+      limite: new Date(application.createdAt).toLocaleDateString("pt-BR"),
+      revisor: application.jobId?.companyId?.name || "N/A",
+      data: application.createdAt,
+      tipo: "candidatura",
+      application: application,
+    }));
+  }, [
+    applications,
+    allApplications,
+    mode,
+    activeTab,
+    applicationsPage,
+    applicationsPageSize,
+  ]);
 
   // Handlers para criação
   const handleCreateCompany = (company: any) => {
     if (onCompanyUpdate) {
       onCompanyUpdate(company);
     }
+    // Recarregar lista de empresas após criar
+    setCompaniesRefreshKey((prev) => prev + 1);
   };
 
   const handleCreateUser = (user: any) => {
     if (onUserUpdate) {
       onUserUpdate(user);
     }
+    // Recarregar lista de usuarios após criar
+    setUsersRefreshKey((prev) => prev + 1);
   };
 
   const handleCreateVacancy = (vacancy: any) => {
     if (onVacancyUpdate) {
       onVacancyUpdate(vacancy);
     }
+    // Recarregar lista de vagas após criar
+    setVacanciesRefreshKey((prev) => prev + 1);
+  };
+
+  const handleVacancyUpdate = (vacancy: any) => {
+    if (onVacancyUpdate) {
+      onVacancyUpdate(vacancy);
+    }
+    // Recarregar lista de vagas após atualizar
+    setVacanciesRefreshKey((prev) => prev + 1);
   };
 
   const handleCreateApplication = (application: any) => {
     if (onApplicationUpdate) {
       onApplicationUpdate(application);
     }
+    // Recarregar lista de candidaturas após criar
+    setApplicationsRefreshKey((prev) => prev + 1);
   };
 
   return (
@@ -526,25 +806,30 @@ export function DataTable({
             <>
               <TabsTrigger value="empresas">
                 Empresas{" "}
-                <Badge variant="secondary">{adminCompaniesData.length}</Badge>
+                <Badge variant="secondary">
+                  {companiesTotal || adminCompaniesData.length}
+                </Badge>
               </TabsTrigger>
               <TabsTrigger value="usuarios">
                 Usuários{" "}
-                <Badge variant="secondary">{adminUsersData.length}</Badge>
+                <Badge variant="secondary">
+                  {usersTotal || adminUsersData.length}
+                </Badge>
               </TabsTrigger>
               <TabsTrigger value="vagas">
                 Vagas{" "}
                 <Badge variant="secondary">
-                  {data.filter((d: any) => d.tipoSecao === "Vaga").length}
+                  {vacanciesTotal !== null
+                    ? vacanciesTotal
+                    : adminVacanciesData.length || 0}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="candidaturas">
                 Candidaturas{" "}
                 <Badge variant="secondary">
-                  {
-                    data.filter((d: any) => d.tipoSecao === "Candidatura")
-                      .length
-                  }
+                  {applicationsTotal !== null
+                    ? applicationsTotal
+                    : adminApplicationsData.length || 0}
                 </Badge>
               </TabsTrigger>
             </>
@@ -820,7 +1105,11 @@ export function DataTable({
         className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
       >
         <div className="text-sm text-muted-foreground">
-          {vacanciesData.length} vagas encontradas
+          {mode === "admin" && activeTab === "vagas"
+            ? `${
+                vacanciesTotal !== null ? vacanciesTotal : 0
+              } vagas encontradas`
+            : `${vacanciesData.length} vagas encontradas`}
         </div>
         <div className="overflow-hidden rounded-lg border">
           <Table>
@@ -832,10 +1121,38 @@ export function DataTable({
                 <TableHead className="text-right">Candidaturas</TableHead>
                 <TableHead className="text-right">Visualizações</TableHead>
                 <TableHead>Responsável</TableHead>
+                {mode === "admin" && activeTab === "vagas" && (
+                  <TableHead className="text-right">Ações</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {vacanciesData.length > 0 ? (
+              {mode === "admin" && activeTab === "vagas" ? (
+                vacanciesLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      Carregando vagas...
+                    </TableCell>
+                  </TableRow>
+                ) : adminVacanciesData.length > 0 ? (
+                  adminVacanciesData.map((row: any) => (
+                    <AdminVacancyRow
+                      key={row._id || row.id}
+                      row={row}
+                      onUpdate={handleVacancyUpdate}
+                      onRefresh={() =>
+                        setVacanciesRefreshKey((prev) => prev + 1)
+                      }
+                    />
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      Nenhuma vaga encontrada.
+                    </TableCell>
+                  </TableRow>
+                )
+              ) : vacanciesData.length > 0 ? (
                 vacanciesData.map((row: any) => (
                   <TableRow key={row.id}>
                     <TableCell>{row.empresa}</TableCell>
@@ -860,13 +1177,130 @@ export function DataTable({
             </TableBody>
           </Table>
         </div>
+        {mode === "admin" && activeTab === "vagas" && (
+          <div className="flex items-center justify-between px-4">
+            <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+              Mostrando {adminVacanciesData.length} de{" "}
+              {vacanciesTotal !== null ? vacanciesTotal : 0} vagas
+            </div>
+            <div className="flex w-full items-center gap-8 lg:w-fit">
+              <div className="hidden items-center gap-2 lg:flex">
+                <Label
+                  htmlFor="vacancies-rows-per-page"
+                  className="text-sm font-medium"
+                >
+                  Linhas por página
+                </Label>
+                <Select
+                  value={`${vacanciesPageSize}`}
+                  onValueChange={(value) => {
+                    setVacanciesPageSize(Number(value));
+                    setVacanciesPage(1);
+                  }}
+                >
+                  <SelectTrigger
+                    className="w-20 h-8"
+                    id="vacancies-rows-per-page"
+                  >
+                    <SelectValue placeholder={vacanciesPageSize} />
+                  </SelectTrigger>
+                  <SelectContent side="top">
+                    {[10, 20, 30, 40, 50].map((pageSize) => (
+                      <SelectItem key={pageSize} value={`${pageSize}`}>
+                        {pageSize}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex w-fit items-center justify-center text-sm font-medium">
+                Página {vacanciesPage} de{" "}
+                {vacanciesTotal !== null
+                  ? Math.ceil(vacanciesTotal / vacanciesPageSize) || 1
+                  : 1}
+              </div>
+              <div className="ml-auto flex items-center gap-2 lg:ml-0">
+                <Button
+                  variant="outline"
+                  className="hidden h-8 w-8 p-0 lg:flex bg-transparent"
+                  onClick={() => setVacanciesPage(1)}
+                  disabled={vacanciesPage === 1 || vacanciesLoading}
+                >
+                  <span className="sr-only">Ir para a primeira página</span>
+                  <IconChevronsLeft />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="size-8 bg-transparent"
+                  size="icon"
+                  onClick={() =>
+                    setVacanciesPage((prev) => Math.max(1, prev - 1))
+                  }
+                  disabled={vacanciesPage === 1 || vacanciesLoading}
+                >
+                  <span className="sr-only">Ir para a página anterior</span>
+                  <IconChevronLeft />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="size-8 bg-transparent"
+                  size="icon"
+                  onClick={() =>
+                    setVacanciesPage((prev) =>
+                      Math.min(
+                        vacanciesTotal !== null
+                          ? Math.ceil(vacanciesTotal / vacanciesPageSize) || 1
+                          : 1,
+                        prev + 1
+                      )
+                    )
+                  }
+                  disabled={
+                    vacanciesTotal !== null &&
+                    (vacanciesPage >=
+                      Math.ceil(vacanciesTotal / vacanciesPageSize) ||
+                      vacanciesLoading)
+                  }
+                >
+                  <span className="sr-only">Ir para a próxima página</span>
+                  <IconChevronRight />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="hidden size-8 lg:flex bg-transparent"
+                  size="icon"
+                  onClick={() =>
+                    setVacanciesPage(
+                      vacanciesTotal !== null
+                        ? Math.ceil(vacanciesTotal / vacanciesPageSize) || 1
+                        : 1
+                    )
+                  }
+                  disabled={
+                    vacanciesTotal !== null &&
+                    (vacanciesPage >=
+                      Math.ceil(vacanciesTotal / vacanciesPageSize) ||
+                      vacanciesLoading)
+                  }
+                >
+                  <span className="sr-only">Ir para a última página</span>
+                  <IconChevronsRight />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </TabsContent>
       <TabsContent
         value="candidaturas"
         className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
       >
         <div className="text-sm text-muted-foreground">
-          {applicationsData.length} candidaturas encontradas
+          {mode === "admin" && activeTab === "candidaturas"
+            ? `${
+                applicationsTotal !== null ? applicationsTotal : 0
+              } candidaturas encontradas`
+            : `${applicationsData.length} candidaturas encontradas`}
         </div>
         <div className="overflow-hidden rounded-lg border">
           <Table>
@@ -875,13 +1309,42 @@ export function DataTable({
                 <TableHead>Vaga</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Quantidade</TableHead>
-                <TableHead className="text-right">Limite</TableHead>
-                <TableHead>Candidato</TableHead>
+                <TableHead className="text-right">Candidato</TableHead>
+                <TableHead className="text-right">Data</TableHead>
+                <TableHead>Empresa</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {applicationsData.length > 0 ? (
+              {mode === "admin" && activeTab === "candidaturas" ? (
+                applicationsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                      Carregando candidaturas...
+                    </TableCell>
+                  </TableRow>
+                ) : adminApplicationsData.length > 0 ? (
+                  adminApplicationsData.map((row: any) => (
+                    <TableRow key={row._id || row.id}>
+                      <TableCell>{row.empresa}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{row.tipoSecao}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{row.statusSecao}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{row.meta}</TableCell>
+                      <TableCell className="text-right">{row.limite}</TableCell>
+                      <TableCell>{row.revisor}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                      Nenhuma candidatura encontrada.
+                    </TableCell>
+                  </TableRow>
+                )
+              ) : applicationsData.length > 0 ? (
                 applicationsData.map((row: any) => (
                   <TableRow key={row.id}>
                     <TableCell>{row.empresa}</TableCell>
@@ -906,6 +1369,122 @@ export function DataTable({
             </TableBody>
           </Table>
         </div>
+        {mode === "admin" && activeTab === "candidaturas" && (
+          <div className="flex items-center justify-between px-4">
+            <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+              Mostrando {adminApplicationsData.length} de{" "}
+              {applicationsTotal !== null ? applicationsTotal : 0} candidaturas
+            </div>
+            <div className="flex w-full items-center gap-8 lg:w-fit">
+              <div className="hidden items-center gap-2 lg:flex">
+                <Label
+                  htmlFor="applications-rows-per-page"
+                  className="text-sm font-medium"
+                >
+                  Linhas por página
+                </Label>
+                <Select
+                  value={`${applicationsPageSize}`}
+                  onValueChange={(value) => {
+                    setApplicationsPageSize(Number(value));
+                    setApplicationsPage(1);
+                  }}
+                >
+                  <SelectTrigger
+                    className="w-20 h-8"
+                    id="applications-rows-per-page"
+                  >
+                    <SelectValue placeholder={applicationsPageSize} />
+                  </SelectTrigger>
+                  <SelectContent side="top">
+                    {[10, 20, 30, 40, 50].map((pageSize) => (
+                      <SelectItem key={pageSize} value={`${pageSize}`}>
+                        {pageSize}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex w-fit items-center justify-center text-sm font-medium">
+                Página {applicationsPage} de{" "}
+                {applicationsTotal !== null
+                  ? Math.ceil(applicationsTotal / applicationsPageSize) || 1
+                  : 1}
+              </div>
+              <div className="ml-auto flex items-center gap-2 lg:ml-0">
+                <Button
+                  variant="outline"
+                  className="hidden h-8 w-8 p-0 lg:flex bg-transparent"
+                  onClick={() => setApplicationsPage(1)}
+                  disabled={applicationsPage === 1 || applicationsLoading}
+                >
+                  <span className="sr-only">Ir para a primeira página</span>
+                  <IconChevronsLeft />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="size-8 bg-transparent"
+                  size="icon"
+                  onClick={() =>
+                    setApplicationsPage((prev) => Math.max(1, prev - 1))
+                  }
+                  disabled={applicationsPage === 1 || applicationsLoading}
+                >
+                  <span className="sr-only">Ir para a página anterior</span>
+                  <IconChevronLeft />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="size-8 bg-transparent"
+                  size="icon"
+                  onClick={() =>
+                    setApplicationsPage((prev) =>
+                      Math.min(
+                        applicationsTotal !== null
+                          ? Math.ceil(
+                              applicationsTotal / applicationsPageSize
+                            ) || 1
+                          : 1,
+                        prev + 1
+                      )
+                    )
+                  }
+                  disabled={
+                    applicationsTotal !== null &&
+                    (applicationsPage >=
+                      Math.ceil(applicationsTotal / applicationsPageSize) ||
+                      applicationsLoading)
+                  }
+                >
+                  <span className="sr-only">Ir para a próxima página</span>
+                  <IconChevronRight />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="hidden size-8 lg:flex bg-transparent"
+                  size="icon"
+                  onClick={() =>
+                    setApplicationsPage(
+                      applicationsTotal !== null
+                        ? Math.ceil(applicationsTotal / applicationsPageSize) ||
+                            1
+                        : 1
+                    )
+                  }
+                  disabled={
+                    applicationsTotal !== null &&
+                    (applicationsPage >=
+                      Math.ceil(applicationsTotal / applicationsPageSize) ||
+                      applicationsLoading)
+                  }
+                >
+                  <span className="sr-only">Ir para a última página</span>
+                  <IconChevronsRight />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </TabsContent>
       {mode === "admin" ? (
         <>
@@ -914,7 +1493,9 @@ export function DataTable({
             className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
           >
             <div className="text-sm text-muted-foreground">
-              {adminCompaniesData.length} empresas encontradas
+              {companiesTotal > 0
+                ? `${companiesTotal} empresas encontradas`
+                : "Carregando empresas..."}
             </div>
             <div className="overflow-hidden rounded-lg border">
               <Table>
@@ -929,12 +1510,21 @@ export function DataTable({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {adminCompaniesData.length > 0 ? (
+                  {companiesLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        Carregando empresas...
+                      </TableCell>
+                    </TableRow>
+                  ) : adminCompaniesData.length > 0 ? (
                     adminCompaniesData.map((row: any) => (
                       <AdminCompanyRow
-                        key={row.id}
+                        key={row._id || row.id}
                         row={row}
                         onUpdate={onCompanyUpdate}
+                        onRefresh={() =>
+                          setCompaniesRefreshKey((prev) => prev + 1)
+                        }
                       />
                     ))
                   ) : (
@@ -947,13 +1537,119 @@ export function DataTable({
                 </TableBody>
               </Table>
             </div>
+            {/* Paginação para empresas */}
+            <div className="flex items-center justify-between px-4">
+              <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+                Mostrando {adminCompaniesData.length} de {companiesTotal}{" "}
+                empresas
+              </div>
+              <div className="flex w-full items-center gap-8 lg:w-fit">
+                <div className="hidden items-center gap-2 lg:flex">
+                  <Label
+                    htmlFor="companies-rows-per-page"
+                    className="text-sm font-medium"
+                  >
+                    Linhas por página
+                  </Label>
+                  <Select
+                    value={`${companiesPageSize}`}
+                    onValueChange={(value) => {
+                      setCompaniesPageSize(Number(value));
+                      setCompaniesPage(1); // Reset para primeira página
+                    }}
+                  >
+                    <SelectTrigger
+                      className="w-20 h-8"
+                      id="companies-rows-per-page"
+                    >
+                      <SelectValue placeholder={companiesPageSize} />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                      {[10, 20, 30, 40, 50].map((pageSize) => (
+                        <SelectItem key={pageSize} value={`${pageSize}`}>
+                          {pageSize}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex w-fit items-center justify-center text-sm font-medium">
+                  Página {companiesPage} de{" "}
+                  {Math.ceil(companiesTotal / companiesPageSize) || 1}
+                </div>
+                <div className="ml-auto flex items-center gap-2 lg:ml-0">
+                  <Button
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex bg-transparent"
+                    onClick={() => setCompaniesPage(1)}
+                    disabled={companiesPage === 1 || companiesLoading}
+                  >
+                    <span className="sr-only">Ir para a primeira página</span>
+                    <IconChevronsLeft />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="size-8 bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setCompaniesPage((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={companiesPage === 1 || companiesLoading}
+                  >
+                    <span className="sr-only">Ir para a página anterior</span>
+                    <IconChevronLeft />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="size-8 bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setCompaniesPage((prev) =>
+                        Math.min(
+                          Math.ceil(companiesTotal / companiesPageSize) || 1,
+                          prev + 1
+                        )
+                      )
+                    }
+                    disabled={
+                      companiesPage >=
+                        Math.ceil(companiesTotal / companiesPageSize) ||
+                      companiesLoading
+                    }
+                  >
+                    <span className="sr-only">Ir para a próxima página</span>
+                    <IconChevronRight />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="hidden size-8 lg:flex bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setCompaniesPage(
+                        Math.ceil(companiesTotal / companiesPageSize) || 1
+                      )
+                    }
+                    disabled={
+                      companiesPage >=
+                        Math.ceil(companiesTotal / companiesPageSize) ||
+                      companiesLoading
+                    }
+                  >
+                    <span className="sr-only">Ir para a última página</span>
+                    <IconChevronsRight />
+                  </Button>
+                </div>
+              </div>
+            </div>
           </TabsContent>
           <TabsContent
             value="usuarios"
             className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
           >
             <div className="text-sm text-muted-foreground">
-              {adminUsersData.length} usuários encontrados
+              {usersTotal > 0
+                ? `${usersTotal} usuários encontrados`
+                : "Carregando usuários..."}
             </div>
             <div className="overflow-hidden rounded-lg border">
               <Table>
@@ -969,13 +1665,25 @@ export function DataTable({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {adminUsersData.length > 0 ? (
+                  {usersLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-24 text-center">
+                        Carregando usuários...
+                      </TableCell>
+                    </TableRow>
+                  ) : adminUsersData.length > 0 ? (
                     adminUsersData.map((row: any) => (
-                      <TableRow key={row.id}>
+                      <TableRow key={row._id || row.id}>
                         <TableCell className="font-medium">
                           <EditUserDrawer
                             user={row.user}
-                            onUpdate={onUserUpdate || (() => {})}
+                            onUpdate={(user: any) => {
+                              if (onUserUpdate) {
+                                onUserUpdate(user);
+                              }
+                              // Recarregar lista de usuarios após atualizar
+                              setUsersRefreshKey((prev) => prev + 1);
+                            }}
                             trigger={
                               <Button
                                 variant="link"
@@ -1002,7 +1710,13 @@ export function DataTable({
                         <TableCell>
                           <EditUserDrawer
                             user={row.user}
-                            onUpdate={onUserUpdate || (() => {})}
+                            onUpdate={(user: any) => {
+                              if (onUserUpdate) {
+                                onUserUpdate(user);
+                              }
+                              // Recarregar lista de usuarios após atualizar
+                              setUsersRefreshKey((prev) => prev + 1);
+                            }}
                             trigger={
                               <Button variant="ghost" size="sm">
                                 Editar
@@ -1021,6 +1735,105 @@ export function DataTable({
                   )}
                 </TableBody>
               </Table>
+            </div>
+            {/* Paginação para usuarios */}
+            <div className="flex items-center justify-between px-4">
+              <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+                Mostrando {adminUsersData.length} de {usersTotal} usuários
+              </div>
+              <div className="flex w-full items-center gap-8 lg:w-fit">
+                <div className="hidden items-center gap-2 lg:flex">
+                  <Label
+                    htmlFor="users-rows-per-page"
+                    className="text-sm font-medium"
+                  >
+                    Linhas por página
+                  </Label>
+                  <Select
+                    value={`${usersPageSize}`}
+                    onValueChange={(value) => {
+                      setUsersPageSize(Number(value));
+                      setUsersPage(1);
+                    }}
+                  >
+                    <SelectTrigger
+                      className="w-20 h-8"
+                      id="users-rows-per-page"
+                    >
+                      <SelectValue placeholder={usersPageSize} />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                      {[10, 20, 30, 40, 50].map((pageSize) => (
+                        <SelectItem key={pageSize} value={`${pageSize}`}>
+                          {pageSize}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex w-fit items-center justify-center text-sm font-medium">
+                  Página {usersPage} de{" "}
+                  {Math.ceil(usersTotal / usersPageSize) || 1}
+                </div>
+                <div className="ml-auto flex items-center gap-2 lg:ml-0">
+                  <Button
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex bg-transparent"
+                    onClick={() => setUsersPage(1)}
+                    disabled={usersPage === 1 || usersLoading}
+                  >
+                    <span className="sr-only">Ir para a primeira página</span>
+                    <IconChevronsLeft />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="size-8 bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setUsersPage((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={usersPage === 1 || usersLoading}
+                  >
+                    <span className="sr-only">Ir para a página anterior</span>
+                    <IconChevronLeft />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="size-8 bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setUsersPage((prev) =>
+                        Math.min(
+                          Math.ceil(usersTotal / usersPageSize) || 1,
+                          prev + 1
+                        )
+                      )
+                    }
+                    disabled={
+                      usersPage >= Math.ceil(usersTotal / usersPageSize) ||
+                      usersLoading
+                    }
+                  >
+                    <span className="sr-only">Ir para a próxima página</span>
+                    <IconChevronRight />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="hidden size-8 lg:flex bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setUsersPage(Math.ceil(usersTotal / usersPageSize) || 1)
+                    }
+                    disabled={
+                      usersPage >= Math.ceil(usersTotal / usersPageSize) ||
+                      usersLoading
+                    }
+                  >
+                    <span className="sr-only">Ir para a última página</span>
+                    <IconChevronsRight />
+                  </Button>
+                </div>
+              </div>
             </div>
           </TabsContent>
         </>
@@ -1080,12 +1893,15 @@ export function DataTable({
 function AdminCompanyRow({
   row,
   onUpdate,
+  onRefresh,
 }: {
   row: any;
   onUpdate?: (company: any) => void;
+  onRefresh?: () => void;
 }) {
   const [assigningAdmin, setAssigningAdmin] = React.useState(false);
   const [selectedUserId, setSelectedUserId] = React.useState("");
+  const [selectedUserName, setSelectedUserName] = React.useState("");
 
   const handleAssignAdmin = async () => {
     if (!selectedUserId) {
@@ -1106,22 +1922,25 @@ function AdminCompanyRow({
         }
       );
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Erro ao atribuir admin");
+        throw new Error(data.error || "Erro ao atribuir admin");
       }
 
-      const data = await response.json();
       toast.success(data.message || "Admin atribuído com sucesso!");
-      setSelectedUserId("");
-      // Recarregar dados se necessário
-      if (onUpdate) {
-        // Buscar empresa atualizada
-        const companyResponse = await fetch(`/api/admin/companies/${row._id}`);
-        if (companyResponse.ok) {
-          const companyData = await companyResponse.json();
-          onUpdate(companyData.company);
-        }
+
+      // Limpar seleção
+      handleClearUser();
+
+      // Usar empresa retornada pela API se disponível
+      if (data.company && onUpdate) {
+        onUpdate(data.company);
+      }
+
+      // Recarregar lista de empresas para atualizar os dados
+      if (onRefresh) {
+        onRefresh();
       }
     } catch (error: any) {
       console.error("Error assigning admin:", error);
@@ -1131,12 +1950,40 @@ function AdminCompanyRow({
     }
   };
 
+  const handleUserSelect = (userId: string, userName?: string) => {
+    if (userId) {
+      setSelectedUserId(userId);
+      if (userName) {
+        setSelectedUserName(userName);
+      }
+    } else {
+      // Limpar seleção
+      setSelectedUserId("");
+      setSelectedUserName("");
+    }
+  };
+
+  const handleClearUser = () => {
+    setSelectedUserId("");
+    setSelectedUserName("");
+  };
+
+  const handleCompanyUpdate = (company: any) => {
+    if (onUpdate) {
+      onUpdate(company);
+    }
+    // Recarregar lista de empresas após atualizar
+    if (onRefresh) {
+      onRefresh();
+    }
+  };
+
   return (
     <TableRow>
       <TableCell>
         <EditCompanyDrawer
           company={row.company}
-          onUpdate={onUpdate || (() => {})}
+          onUpdate={handleCompanyUpdate}
           trigger={
             <Button
               variant="link"
@@ -1154,21 +2001,118 @@ function AdminCompanyRow({
       <TableCell className="text-right">{row.limite}</TableCell>
       <TableCell>{row.revisor}</TableCell>
       <TableCell>
-        <div className="flex items-center gap-2">
-          <UserCombobox
-            onSelect={setSelectedUserId}
-            placeholder="Atribuir admin..."
-          />
-          {selectedUserId && (
-            <Button
-              size="sm"
-              onClick={handleAssignAdmin}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex-1 min-w-[200px]">
+            <UserCombobox
+              onSelect={handleUserSelect}
+              onClear={handleClearUser}
+              placeholder="Pesquisar usuário..."
               disabled={assigningAdmin}
-            >
-              {assigningAdmin ? "Atribuindo..." : "Atribuir"}
-            </Button>
+              value={selectedUserId}
+            />
+          </div>
+          {selectedUserId && (
+            <>
+              <Button
+                size="icon"
+                onClick={handleAssignAdmin}
+                disabled={assigningAdmin}
+                variant="default"
+                className="h-8 w-8"
+                title="Atribuir Admin"
+              >
+                {assigningAdmin ? (
+                  <IconLoader className="h-4 w-4 animate-spin" />
+                ) : (
+                  <IconArrowUp className="h-4 w-4" />
+                )}
+                <span className="sr-only">Atribuir Admin</span>
+              </Button>
+              <Button
+                size="icon"
+                onClick={handleClearUser}
+                disabled={assigningAdmin}
+                variant="ghost"
+                className="h-8 w-8"
+                title="Cancelar"
+              >
+                <IconX className="h-4 w-4" />
+                <span className="sr-only">Cancelar</span>
+              </Button>
+            </>
           )}
         </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// Componente para linha de vaga no modo admin
+function AdminVacancyRow({
+  row,
+  onUpdate,
+  onRefresh,
+}: {
+  row: any;
+  onUpdate?: (vacancy: any) => void;
+  onRefresh?: () => void;
+}) {
+  const handleVacancyUpdate = (vacancy: any) => {
+    if (onUpdate) {
+      onUpdate(vacancy);
+    }
+    // Recarregar lista de vagas após atualizar
+    if (onRefresh) {
+      onRefresh();
+    }
+  };
+
+  // Usar os dados da vaga do objeto row.vacancy se disponível
+  // A vaga já está formatada corretamente no adminVacanciesData
+  const vacancy = row.vacancy || {
+    _id: row._id,
+    title: row.empresa,
+    companyId: row.vacancy?.companyId || { name: row.empresa },
+    description: row.vacancy?.description || "",
+    location: row.vacancy?.location || "",
+    remote: row.vacancy?.remote || false,
+    type: row.vacancy?.type || "full-time",
+    level: row.vacancy?.level || "mid",
+    category: row.vacancy?.category || "",
+    salaryRange: row.vacancy?.salaryRange,
+    requirements: row.vacancy?.requirements || [],
+    responsibilities: row.vacancy?.responsibilities || [],
+    benefits: row.vacancy?.benefits || [],
+    skills: row.vacancy?.skills || [],
+    tags: row.vacancy?.tags || [],
+    status: row.statusSecao || "draft",
+    postedBy: row.vacancy?.postedBy,
+  };
+
+  return (
+    <TableRow>
+      <TableCell>{row.empresa}</TableCell>
+      <TableCell>
+        <Badge variant="outline">{row.tipoSecao}</Badge>
+      </TableCell>
+      <TableCell>
+        <Badge variant="outline">{row.statusSecao}</Badge>
+      </TableCell>
+      <TableCell className="text-right">{row.meta}</TableCell>
+      <TableCell className="text-right">{row.limite}</TableCell>
+      <TableCell>
+        {row.revisor && row.revisor !== "N/A" ? row.revisor : "-"}
+      </TableCell>
+      <TableCell className="text-right">
+        <EditVacancyDrawer
+          vacancy={vacancy}
+          onUpdate={handleVacancyUpdate}
+          trigger={
+            <Button variant="ghost" size="sm">
+              Editar
+            </Button>
+          }
+        />
       </TableCell>
     </TableRow>
   );

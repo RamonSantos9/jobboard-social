@@ -25,6 +25,15 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { IconX, IconLoader } from "@tabler/icons-react";
+
+interface Admin {
+  _id: string;
+  name: string;
+  email: string;
+}
 
 interface Company {
   _id: string;
@@ -45,6 +54,8 @@ interface Company {
     facebook?: string;
     instagram?: string;
   };
+  admins?: Admin[];
+  recruiters?: Admin[];
 }
 
 interface EditCompanyDrawerProps {
@@ -61,6 +72,8 @@ export function EditCompanyDrawer({
   const isMobile = useIsMobile();
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [removingAdminId, setRemovingAdminId] = React.useState<string | null>(null);
+  const [companyData, setCompanyData] = React.useState<Company>(company);
   const [formData, setFormData] = React.useState({
     name: company.name || "",
     cnpj: company.cnpj || "",
@@ -78,6 +91,95 @@ export function EditCompanyDrawer({
     facebook: company.socialLinks?.facebook || "",
     instagram: company.socialLinks?.instagram || "",
   });
+
+  // Função para buscar dados atualizados da empresa
+  const fetchCompanyData = React.useCallback(async () => {
+    try {
+      const companyId = String(company._id);
+      const response = await fetch(`/api/admin/companies/${companyId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.company) {
+          setCompanyData(data.company);
+          // Atualizar também os dados do formulário
+          setFormData((prev) => ({
+            ...prev,
+            name: data.company.name || prev.name,
+            cnpj: data.company.cnpj || prev.cnpj,
+            industry: data.company.industry || prev.industry,
+            description: data.company.description || prev.description,
+            size: data.company.size || prev.size,
+            location: data.company.location || prev.location,
+            website: data.company.website || prev.website,
+            foundedYear: data.company.foundedYear?.toString() || prev.foundedYear,
+            isVerified: data.company.isVerified ?? prev.isVerified,
+            culture: data.company.culture || prev.culture,
+            benefits: data.company.benefits?.join(", ") || prev.benefits,
+            linkedin: data.company.socialLinks?.linkedin || prev.linkedin,
+            twitter: data.company.socialLinks?.twitter || prev.twitter,
+            facebook: data.company.socialLinks?.facebook || prev.facebook,
+            instagram: data.company.socialLinks?.instagram || prev.instagram,
+          }));
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching company data:", error);
+    }
+  }, [company._id]);
+
+  // Buscar dados atualizados da empresa quando o drawer abrir
+  React.useEffect(() => {
+    if (open) {
+      fetchCompanyData();
+    }
+  }, [open, fetchCompanyData]);
+
+  // Atualizar companyData quando company prop mudar
+  React.useEffect(() => {
+    if (company) {
+      // Só atualizar se não estiver aberto (para evitar conflitos)
+      if (!open) {
+        setCompanyData(company);
+      }
+    }
+  }, [company, open]);
+
+  const handleRemoveAdmin = async (adminId: string, adminName: string) => {
+    setRemovingAdminId(adminId);
+    try {
+      const companyId = String(company._id);
+      const response = await fetch(
+        `/api/admin/companies/${companyId}/remove-admin`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId: adminId }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Erro ao remover admin");
+      }
+
+      const data = await response.json();
+      toast.success(data.message || "Admin removido com sucesso!");
+      
+      // Atualizar dados da empresa
+      setCompanyData(data.company);
+      onUpdate(data.company);
+      
+      // Recarregar dados atualizados
+      await fetchCompanyData();
+    } catch (error: any) {
+      console.error("Error removing admin:", error);
+      toast.error(error.message || "Erro ao remover admin");
+    } finally {
+      setRemovingAdminId(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,6 +215,10 @@ export function EditCompanyDrawer({
             facebook: formData.facebook || undefined,
             instagram: formData.instagram || undefined,
           },
+          // createdAt não é enviado porque não pode ser modificado quando timestamps: true está ativo
+          // createdAt: formData.createdAt
+          //   ? new Date(formData.createdAt).toISOString()
+          //   : undefined,
         }),
       });
 
@@ -123,6 +229,7 @@ export function EditCompanyDrawer({
 
       const data = await response.json();
       toast.success("Empresa atualizada com sucesso!");
+      setCompanyData(data.company);
       onUpdate(data.company);
       setOpen(false);
     } catch (error: any) {
@@ -317,6 +424,105 @@ export function EditCompanyDrawer({
               />
             </div>
           </div>
+
+          {/* Seção de Administradores */}
+          <div className="flex flex-col gap-3 border-t pt-4">
+            <Label>Administradores da Empresa</Label>
+            {companyData.admins && companyData.admins.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {companyData.admins.map((admin) => (
+                  <div
+                    key={admin._id}
+                    className="flex items-center gap-3 rounded-lg border p-3"
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback>
+                        {admin.name
+                          ?.split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2) || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-1 flex-col">
+                      <span className="text-sm font-medium">{admin.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {admin.email}
+                      </span>
+                    </div>
+                    <Badge variant="default">Admin</Badge>
+                    {companyData.admins && companyData.admins.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        disabled={removingAdminId === admin._id}
+                        onClick={() => {
+                          if (confirm(`Tem certeza que deseja remover ${admin.name} como administrador da empresa?`)) {
+                            handleRemoveAdmin(admin._id, admin.name);
+                          }
+                        }}
+                        title="Remover admin"
+                      >
+                        {removingAdminId === admin._id ? (
+                          <IconLoader className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <IconX className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Nenhum administrador atribuído
+              </p>
+            )}
+          </div>
+
+          {/* Seção de Recrutadores */}
+          {companyData.recruiters && companyData.recruiters.length > 0 && (
+            <div className="flex flex-col gap-3 border-t pt-4">
+              <Label>Recrutadores da Empresa</Label>
+              <div className="flex flex-col gap-2">
+                {companyData.recruiters
+                  .filter(
+                    (recruiter) =>
+                      !companyData.admins?.some(
+                        (admin) => admin._id === recruiter._id
+                      )
+                  )
+                  .map((recruiter) => (
+                    <div
+                      key={recruiter._id}
+                      className="flex items-center gap-3 rounded-lg border p-3"
+                    >
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback>
+                          {recruiter.name
+                            ?.split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .toUpperCase()
+                            .slice(0, 2) || "U"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-1 flex-col">
+                        <span className="text-sm font-medium">
+                          {recruiter.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {recruiter.email}
+                        </span>
+                      </div>
+                      <Badge variant="secondary">Recrutador</Badge>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </form>
         <DrawerFooter>
           <Button onClick={handleSubmit} disabled={loading}>

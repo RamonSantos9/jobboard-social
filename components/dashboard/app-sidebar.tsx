@@ -4,22 +4,12 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
-  IconChartBar,
   IconDashboard,
-  IconFileWord,
-  IconFolder,
   IconHelp,
-  IconInnerShadowTop,
   IconReport,
   IconSearch,
-  IconSettings,
   IconCheck,
-  IconClock,
-  IconCalendar,
-  IconUsers,
-  IconMessageCircle,
   IconBriefcase,
-  IconBell,
 } from "@tabler/icons-react";
 
 import { NavDocuments } from "@/components/dashboard/nav-documents";
@@ -37,6 +27,7 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import LogoIcon from "../LogoIcon";
 
 const getNavData = (
   user: { name?: string; email?: string; photoUrl?: string } | null,
@@ -137,7 +128,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <a href="/">
-                <IconInnerShadowTop className="!size-5" />
+                <LogoIcon className="!size-5" />
                 <span className="text-base font-semibold">JobBoard Social</span>
               </a>
             </SidebarMenuButton>
