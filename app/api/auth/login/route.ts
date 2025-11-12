@@ -27,15 +27,51 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("Iniciando conexão com banco de dados...");
+    // Verificar se a variável de ambiente está definida
+    if (!process.env.MONGODB_URI) {
+      console.error("MONGODB_URI não está definida nas variáveis de ambiente");
+      return NextResponse.json(
+        {
+          error: "DATABASE_CONFIG_ERROR",
+          message: "Erro de configuração do servidor. Entre em contato com o suporte.",
+        },
+        { status: 500 }
+      );
+    }
+
     try {
       await connectDB();
       console.log("Conexão com banco de dados estabelecida");
     } catch (dbError: any) {
-      console.error("Erro ao conectar com banco de dados:", dbError);
+      console.error("Erro ao conectar com banco de dados:", {
+        message: dbError?.message,
+        name: dbError?.name,
+        code: dbError?.code,
+        stack: dbError?.stack,
+      });
+
+      // Verificar o tipo específico de erro
+      let errorMessage = "Erro de conexão com o servidor. Tente novamente mais tarde.";
+      let errorCode = "DATABASE_CONNECTION_ERROR";
+
+      if (dbError?.message?.includes("ENOTFOUND") || dbError?.code === "ENOTFOUND") {
+        errorMessage = "Não foi possível encontrar o servidor de banco de dados. Verifique a configuração.";
+        errorCode = "DATABASE_HOST_ERROR";
+      } else if (dbError?.message?.includes("authentication failed") || dbError?.code === 18) {
+        errorMessage = "Falha na autenticação do banco de dados. Verifique as credenciais.";
+        errorCode = "DATABASE_AUTH_ERROR";
+      } else if (dbError?.message?.includes("timeout") || dbError?.code === "ETIMEDOUT") {
+        errorMessage = "Tempo de conexão com o banco de dados expirou. Tente novamente.";
+        errorCode = "DATABASE_TIMEOUT_ERROR";
+      } else if (dbError?.message?.includes("ECONNREFUSED") || dbError?.code === "ECONNREFUSED") {
+        errorMessage = "Conexão com o banco de dados foi recusada. Verifique se o servidor está ativo.";
+        errorCode = "DATABASE_REFUSED_ERROR";
+      }
+
       return NextResponse.json(
         {
-          error: "DATABASE_CONNECTION_ERROR",
-          message: "Erro de conexão com o servidor. Tente novamente mais tarde.",
+          error: errorCode,
+          message: errorMessage,
         },
         { status: 500 }
       );
