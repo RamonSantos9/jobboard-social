@@ -135,18 +135,53 @@ function analyzeError(error: any): ErrorDetails {
     };
   }
 
-  // Detectar erros de timeout
-  // Em produção com MongoDB Atlas, timeout geralmente significa IP não autorizado
-  // O MongoDB Atlas não responde a conexões de IPs não autorizados, resultando em timeout
+  // Detectar erros específicos do MongoDB Atlas
   const isAtlas = MONGODB_URI?.includes("mongodb+srv://") || MONGODB_URI?.includes("atlas");
+  
+  // Detectar erro específico: MongooseServerSelectionError com mensagem sobre IP whitelist
+  const isServerSelectionError = 
+    errorName === "MongooseServerSelectionError" ||
+    errorCodeName === "MongooseServerSelectionError" ||
+    errorCodeName === "MongoServerSelectionError" ||
+    errorName === "MongoServerSelectionError";
+  
+  // Verificar se a mensagem menciona explicitamente IP whitelist
+  const mentionsIPWhitelist = 
+    errorMessage.toLowerCase().includes("ip that isn't whitelisted") ||
+    errorMessage.toLowerCase().includes("ip address is not whitelisted") ||
+    errorMessage.toLowerCase().includes("ip whitelist") ||
+    errorMessage.toLowerCase().includes("atlas cluster's ip whitelist");
+  
+  // Verificar se é ReplicaSetNoPrimary (indica que não conseguiu conectar a nenhum servidor)
+  const isReplicaSetNoPrimary = 
+    error?.reason?.type === "ReplicaSetNoPrimary" ||
+    error?.cause?.type === "ReplicaSetNoPrimary";
+  
+  // Se for ServerSelectionError E mencionar IP whitelist OU for ReplicaSetNoPrimary com servidores Unknown
+  if (isServerSelectionError && (mentionsIPWhitelist || (isReplicaSetNoPrimary && isAtlas))) {
+    // Verificar se todos os servidores estão como "Unknown" (indica que não conseguiu fazer handshake)
+    const servers = error?.reason?.servers || error?.cause?.servers || {};
+    const allServersUnknown = Object.values(servers).every((server: any) => 
+      server?.type === "Unknown" && server?.roundTripTime === -1
+    );
+    
+    if (allServersUnknown || mentionsIPWhitelist) {
+      return {
+        type: "IP_NOT_AUTHORIZED",
+        code: errorCode,
+        codeName: errorCodeName,
+        message: "IP não autorizado - não foi possível conectar a nenhum servidor do MongoDB Atlas",
+        suggestion: "O erro confirma que o IP da Vercel não está na whitelist. SOLUÇÕES: 1) Acesse /api/health/vercel-ip para obter o IP atual da Vercel, 2) Adicione esse IP no MongoDB Atlas Network Access, 3) OU use MongoDB Atlas Private Endpoint (recomendado para produção - mais seguro e não precisa liberar IPs).",
+      };
+    }
+  }
+  
+  // Detectar erros de timeout
   const isTimeoutError = 
     errorCode === "ETIMEDOUT" || 
     errorCode === "ESOCKETTIMEDOUT" || 
     errorMessage.includes("timeout") || 
-    errorCodeName === "ServerSelectionTimeoutError" ||
-    errorCodeName === "MongoServerSelectionError" ||
-    (errorName === "MongoServerSelectionError" && errorMessage.includes("timeout")) ||
-    errorName === "MongoServerSelectionError";
+    errorCodeName === "ServerSelectionTimeoutError";
 
   if (isTimeoutError) {
     // Não assumir automaticamente que timeout = IP não autorizado
