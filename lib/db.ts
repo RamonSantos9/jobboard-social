@@ -324,9 +324,17 @@ export async function connectDB() {
       if (readyState === 1) {
         // Conexão está conectada - fazer ping para verificar se está realmente ativa
         try {
-          await mongoose.connection.db.admin().ping();
-          console.log("[MongoDB] ✅ Usando conexão existente (verificada com ping)");
-          return cached.conn;
+          // Verificar se db existe antes de fazer ping
+          if (mongoose.connection.db) {
+            await mongoose.connection.db.admin().ping();
+            console.log("[MongoDB] ✅ Usando conexão existente (verificada com ping)");
+            return cached.conn;
+          } else {
+            // Se db não existe, a conexão não está realmente ativa
+            console.log("[MongoDB] ⚠️ DB não disponível, conexão não está ativa. Limpando cache...");
+            cached.conn = null;
+            cached.promise = null;
+          }
         } catch (pingError) {
           // Se o ping falhar, a conexão não está realmente ativa
           console.log("[MongoDB] ⚠️ Ping falhou, conexão não está ativa. Limpando cache...");
