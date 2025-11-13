@@ -43,9 +43,6 @@ export async function POST(request: Request) {
         "Se o email existir, você receberá instruções de redefinição de senha.",
     });
   } catch (error: unknown) {
-    console.error("Forgot password error:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json(
       { error: true, message: "Erro ao processar solicitação" },
       { status: 500 }

@@ -73,14 +73,32 @@ export async function GET(request: NextRequest) {
       connectionTiming.end = Date.now();
       connectionTiming.duration = connectionTiming.end - connectionTiming.start;
       
-      connectionStatus = "connected";
+      // Verificar se realmente está conectado (readyState 1 = connected)
+      const readyState = mongoose.connection.readyState;
+      if (readyState === 1) {
+        connectionStatus = "connected";
+      } else {
+        // Se não está conectado, tratar como erro
+        connectionStatus = "error";
+        connectionError = {
+          type: "CONNECTION_INCOMPLETE",
+          message: `Conexão não completada. Estado atual: ${getReadyStateText(readyState)}`,
+          readyState: readyState,
+          readyStateText: getReadyStateText(readyState),
+          suggestion: readyState === 2 
+            ? "A conexão está tentando conectar mas não completou. Isso geralmente indica que o IP não está na whitelist do MongoDB Atlas. Acesse /api/health/vercel-ip para obter o IP atual e adicione-o no MongoDB Atlas Network Access."
+            : "A conexão não está ativa. Verifique a configuração do MongoDB.",
+        };
+      }
+      
       connectionDetails = {
-        readyState: mongoose.connection.readyState,
-        readyStateText: getReadyStateText(mongoose.connection.readyState),
-        host: mongoose.connection.host,
-        name: mongoose.connection.name,
-        port: mongoose.connection.port,
+        readyState: readyState,
+        readyStateText: getReadyStateText(readyState),
+        host: mongoose.connection.host || null,
+        name: mongoose.connection.name || null,
+        port: mongoose.connection.port || null,
         connectionTiming: connectionTiming.duration,
+        isConnected: readyState === 1,
       };
     } catch (error: any) {
       connectionTiming.end = Date.now();
@@ -118,9 +136,17 @@ export async function GET(request: NextRequest) {
       nextauth_url: process.env.NEXTAUTH_URL ? "configurada" : "não configurada",
     };
 
+    // Determinar status HTTP baseado no estado real da conexão
+    const httpStatus = connectionStatus === "connected" ? 200 : 500;
+    const responseStatus = connectionStatus === "connected" ? "ok" : "error";
+    
     return NextResponse.json(
       {
-        status: connectionStatus === "connected" ? "ok" : "error",
+        success: connectionStatus === "connected",
+        status: responseStatus,
+        message: connectionStatus === "connected" 
+          ? "Conexão bem-sucedida" 
+          : connectionError?.message || "Erro na conexão",
         timestamp: new Date().toISOString(),
         database: {
           uri_configured: hasMongoUri,
@@ -133,9 +159,21 @@ export async function GET(request: NextRequest) {
         },
         environment: environmentInfo,
         recommendations: connectionStatus === "error" ? getRecommendations(connectionError) : null,
+        ...(connectionStatus === "error" && connectionError?.type === "CONNECTION_INCOMPLETE" && {
+          quickFix: {
+            message: "A conexão não completou. O IP atual pode não estar na whitelist.",
+            steps: [
+              "1. Acesse /api/health/vercel-ip para obter o IP atual da Vercel",
+              "2. Adicione esse IP no MongoDB Atlas Network Access",
+              "3. Aguarde 2-5 minutos para propagação",
+              "4. Verifique novamente este endpoint",
+            ],
+            currentIpEndpoint: "/api/health/vercel-ip",
+          },
+        }),
       },
       { 
-        status: connectionStatus === "connected" ? 200 : 500,
+        status: httpStatus,
         headers: {
           "Cache-Control": "no-store, no-cache, must-revalidate",
         },

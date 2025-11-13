@@ -265,7 +265,6 @@ function analyzeError(error: any): ErrorDetails {
   if (
     errorMessage.includes("SSL") ||
     errorMessage.includes("TLS") ||
-    errorMessage.includes("certificate") ||
     errorMessage.includes("certificate")
   ) {
     return {
@@ -319,7 +318,7 @@ function analyzeError(error: any): ErrorDetails {
     message: errorMessage || "Erro desconhecido ao conectar ao MongoDB",
     suggestion: `Erro: ${
       errorCodeName || errorName || "Desconhecido"
-    }. Verifique: 1) Se a URI do MongoDB está correta, 2) Se o IP está na whitelist do MongoDB Atlas (0.0.0.0/0), 3) Se as credenciais estão corretas, 4) Se o cluster está ativo. Acesse /api/health/db para diagnóstico detalhado.`,
+    }. Verifique: 1) Se a URI do MongoDB está correta, 2) Se o IP está na whitelist do MongoDB Atlas Network Access, 3) Se as credenciais estão corretas, 4) Se o cluster está ativo. Acesse /api/health/db para diagnóstico detalhado.`,
   };
 }
 
@@ -425,7 +424,9 @@ export async function connectDB() {
           }
         }
       } else if (readyState === 2 || readyState === 3) {
-        // Conexão está conectando ou desconectando, aguardar
+        // Conexão está conectando ou desconectando, limpar cache e tentar reconectar
+        cached.conn = null;
+        cached.promise = null;
       } else {
         // Conexão não está ativa, limpar cache
         cached.conn = null;

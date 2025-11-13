@@ -25,126 +25,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    try {
-      await connectDB();
-    } catch (dbError: any) {
-      // Extrair detalhes do erro
-      const errorDetails = dbError?.details || {};
-      const errorType = errorDetails.type || "UNKNOWN_ERROR";
-      const errorMessage = errorDetails.message || dbError?.message || "Erro de conexão com o servidor. Tente novamente mais tarde.";
-      const errorSuggestion = errorDetails.suggestion || null;
-
-      // Mapear código de erro baseado no tipo
-      let errorCode = "DATABASE_CONNECTION_ERROR";
-      switch (errorType) {
-        case "MISSING_URI":
-          errorCode = "DATABASE_CONFIG_ERROR";
-          break;
-        case "INVALID_URI":
-          errorCode = "DATABASE_CONFIG_ERROR";
-          break;
-        case "HOST_NOT_FOUND":
-          errorCode = "DATABASE_HOST_ERROR";
-          break;
-        case "AUTH_FAILED":
-          errorCode = "DATABASE_AUTH_ERROR";
-          break;
-        case "TIMEOUT":
-        case "SERVER_SELECTION_TIMEOUT":
-          errorCode = "DATABASE_TIMEOUT_ERROR";
-          break;
-        case "CONNECTION_REFUSED":
-          errorCode = "DATABASE_REFUSED_ERROR";
-          break;
-        case "IP_NOT_AUTHORIZED":
-          errorCode = "DATABASE_ACCESS_ERROR";
-          break;
-        case "SSL_ERROR":
-          errorCode = "DATABASE_SSL_ERROR";
-          break;
-        default:
-          errorCode = "DATABASE_CONNECTION_ERROR";
-      }
-
-      // Preparar resposta com informações úteis
-      const response: any = {
-        error: errorCode,
-        message: errorMessage,
-        type: errorType,
-      };
-
-      // Sempre incluir sugestão se disponível (útil para diagnóstico)
-      if (errorSuggestion) {
-        response.suggestion = errorSuggestion;
-      }
-
-      // Para erros de IP não autorizado, incluir instruções detalhadas
-      if (errorType === "IP_NOT_AUTHORIZED") {
-        response.fixSteps = [
-          "1. Acesse /api/health/vercel-ip para obter o IP atual da Vercel",
-          "2. Copie o IP mostrado em 'recommendedIp' ou 'externalIp'",
-          "3. Acesse MongoDB Atlas → Network Access",
-          "4. Clique em 'Add IP Address'",
-          "5. Cole o IP copiado",
-          "6. Adicione um comentário: 'Vercel - [data atual]'",
-          "7. Clique em 'Confirm' e aguarde 2-5 minutos",
-          "8. Após cada deploy, verifique se o IP mudou acessando /api/health/vercel-ip novamente",
-        ];
-        response.importantNote = "⚠️ IMPORTANTE: Como você está usando MongoDB Atlas Flex, o Private Endpoint não está disponível. Você precisará adicionar o IP manualmente após cada deploy se o IP mudar. Crie um bookmark de /api/health/vercel-ip para verificar rapidamente.";
-        response.troubleshooting = [
-          "Solução para MongoDB Atlas Flex:",
-          "- Acesse /api/health/vercel-ip para ver o IP atual",
-          "- Adicione esse IP no MongoDB Atlas Network Access",
-          "- Após cada deploy, verifique se o IP mudou",
-          "- Mantenha IPs antigos por alguns dias antes de remover (caso precise fazer rollback)",
-          "- Considere fazer upgrade para M10+ se precisar de Private Endpoint (solução permanente)",
-        ];
-        response.quickLinks = {
-          getCurrentIp: "/api/health/vercel-ip",
-          checkIpStatus: "/api/health/ip-check",
-          rawError: "/api/health/db-raw",
-        };
-      }
-
-      // Incluir informações adicionais de diagnóstico em produção também
-      // (mas sem expor dados sensíveis)
-      response.diagnostic = {
-        errorType: errorType,
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || "unknown",
-        platform: process.env.VERCEL ? "Vercel" : "local",
-        // Incluir código se disponível (não é sensível)
-        ...(errorDetails.code && { code: errorDetails.code }),
-        ...(errorDetails.codeName && { codeName: errorDetails.codeName }),
-        // Incluir informações do erro original para diagnóstico
-        originalErrorName: dbError?.originalError?.name || dbError?.name,
-        originalErrorCode: dbError?.originalError?.code || dbError?.code,
-        originalErrorCodeName: dbError?.originalError?.codeName || dbError?.codeName,
-        originalErrorMessage: dbError?.originalError?.message || dbError?.message,
-        // Informações adicionais do MongoDB se disponíveis
-        ...(dbError?.originalError?.reason && { originalReason: dbError.originalError.reason }),
-        ...(dbError?.originalError?.cause && { originalCause: dbError.originalError.cause }),
-      };
-
-      // Em desenvolvimento, incluir mais detalhes
-      if (process.env.NODE_ENV === "development") {
-        response.debug = {
-          originalError: dbError?.originalError?.message,
-          originalErrorFull: dbError?.originalError,
-          stack: dbError?.stack,
-          fullError: dbError,
-        };
-      } else {
-        // Em produção, incluir informações úteis mas não sensíveis
-        response.debug = {
-          originalErrorName: dbError?.originalError?.name || dbError?.name,
-          originalErrorCode: dbError?.originalError?.code || dbError?.code,
-          originalErrorCodeName: dbError?.originalError?.codeName || dbError?.codeName,
-        };
-      }
-
-      return NextResponse.json(response, { status: 500 });
+    // Validar tipos
+    if (typeof email !== "string" || typeof password !== "string") {
+      return NextResponse.json(
+        { error: "INVALID_REQUEST", message: "Email e senha devem ser strings." },
+        { status: 400 }
+      );
     }
+
+    await connectDB();
 
     // Verificar se os modelos estão disponíveis
     if (!UserModel || !CompanyModel) {
@@ -173,7 +62,10 @@ export async function POST(request: NextRequest) {
         findError?.message?.includes("connection") ||
         findError?.message?.includes("timeout") ||
         findError?.message?.includes("Mongo") ||
-        findError?.name?.includes("Mongo");
+        findError?.name?.includes("Mongo") ||
+        findError?.codeName?.includes("Mongo") ||
+        findError?.codeName === "MongooseServerSelectionError" ||
+        findError?.codeName === "MongoServerSelectionError";
       
       return NextResponse.json(
         {
@@ -181,12 +73,6 @@ export async function POST(request: NextRequest) {
           message: isConnectionError 
             ? "Erro de conexão com o banco de dados. Tente novamente mais tarde."
             : "Erro ao buscar dados. Tente novamente mais tarde.",
-          ...(process.env.NODE_ENV === "development" && {
-            debug: {
-              errorName: findError?.name,
-              errorMessage: findError?.message,
-            },
-          }),
         },
         { status: 500 }
       );
@@ -240,7 +126,7 @@ export async function POST(request: NextRequest) {
       // Verificar senha
       let isPasswordValid;
       try {
-        if (typeof user.comparePassword !== "function") {
+        if (!user || typeof user.comparePassword !== "function") {
           return NextResponse.json(
             {
               error: "AUTH_ERROR",
@@ -307,7 +193,7 @@ export async function POST(request: NextRequest) {
       // Verificar senha
       let isPasswordValid;
       try {
-        if (typeof company.comparePassword !== "function") {
+        if (!company || typeof company.comparePassword !== "function") {
           return NextResponse.json(
             {
               error: "AUTH_ERROR",
@@ -369,12 +255,6 @@ export async function POST(request: NextRequest) {
         {
           error: "DATABASE_CONNECTION_ERROR",
           message: "Erro de conexão com o servidor. Tente novamente mais tarde.",
-          ...(process.env.NODE_ENV === "development" && {
-            debug: {
-              errorName: error?.name,
-              errorMessage: error?.message,
-            },
-          }),
         },
         { status: 500 }
       );
@@ -389,12 +269,6 @@ export async function POST(request: NextRequest) {
         {
           error: "MODEL_ERROR",
           message: "Erro interno do servidor. Entre em contato com o suporte.",
-          ...(process.env.NODE_ENV === "development" && {
-            debug: {
-              errorName: error?.name,
-              errorMessage: error?.message,
-            },
-          }),
         },
         { status: 500 }
       );
@@ -405,35 +279,55 @@ export async function POST(request: NextRequest) {
       const errorDetails = (error as any).details;
       const errorType = errorDetails.type || "UNKNOWN_ERROR";
       
+      // Mapear código de erro baseado no tipo
+      let errorCode = "DATABASE_CONNECTION_ERROR";
+      switch (errorType) {
+        case "MISSING_URI":
+        case "INVALID_URI":
+          errorCode = "DATABASE_CONFIG_ERROR";
+          break;
+        case "HOST_NOT_FOUND":
+          errorCode = "DATABASE_HOST_ERROR";
+          break;
+        case "AUTH_FAILED":
+          errorCode = "DATABASE_AUTH_ERROR";
+          break;
+        case "TIMEOUT":
+        case "SERVER_SELECTION_TIMEOUT":
+          errorCode = "DATABASE_TIMEOUT_ERROR";
+          break;
+        case "CONNECTION_REFUSED":
+          errorCode = "DATABASE_REFUSED_ERROR";
+          break;
+        case "IP_NOT_AUTHORIZED":
+          errorCode = "DATABASE_ACCESS_ERROR";
+          break;
+        case "SSL_ERROR":
+          errorCode = "DATABASE_SSL_ERROR";
+          break;
+      }
+      
       return NextResponse.json(
         {
-          error: "DATABASE_CONNECTION_ERROR",
+          error: errorCode,
           message: errorDetails.message || "Erro de conexão com o banco de dados. Tente novamente mais tarde.",
           type: errorType,
-          ...(errorDetails.suggestion && { suggestion: errorDetails.suggestion }),
-          ...(process.env.NODE_ENV === "development" && {
-            debug: {
-              errorName: error?.name,
-              errorMessage: error?.message,
-              errorDetails: errorDetails,
-            },
-          }),
         },
         { status: 500 }
       );
     }
 
+    // Erro genérico
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : typeof error === "string" 
+        ? error 
+        : "Erro ao processar login. Tente novamente mais tarde.";
+
     return NextResponse.json(
       {
         error: "AUTH_ERROR",
-        message: error?.message || "Erro ao processar login. Tente novamente mais tarde.",
-        ...(process.env.NODE_ENV === "development" && {
-          debug: {
-            errorName: error?.name,
-            errorMessage: error?.message,
-            stack: error?.stack,
-          },
-        }),
+        message: errorMessage,
       },
       { status: 500 }
     );

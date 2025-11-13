@@ -38,29 +38,29 @@ function LoginPageContent() {
         if (contentType && contentType.includes("application/json")) {
           checkData = await checkResponse.json();
         } else {
-          const textData = await checkResponse.text();
-          console.error("Resposta não é JSON:", textData);
+          await checkResponse.text();
           throw new Error("Resposta inválida do servidor");
         }
 
         // Se houver erro na verificação, exibir mensagem detalhada e não prosseguir
         if (!checkResponse.ok || checkData.error) {
-          let errorMessage = checkData.message || checkData.error || "Erro ao fazer login";
-          
+          let errorMessage =
+            checkData.message || checkData.error || "Erro ao fazer login";
+
           // Tratar erros de conexão com o banco de dados de forma especial
-          if (checkData.error === "DATABASE_ACCESS_ERROR" || checkData.type === "IP_NOT_AUTHORIZED") {
-            errorMessage = "IP não autorizado para acessar o MongoDB. Por favor, configure o MongoDB Atlas para permitir acesso de todos os IPs (0.0.0.0/0).";
-            if (checkData.suggestion) {
-              console.error("Instruções para corrigir:", checkData.suggestion);
-            }
-            if (checkData.fixSteps) {
-              console.error("Passos para corrigir:", checkData.fixSteps);
-            }
+          if (
+            checkData.error === "DATABASE_ACCESS_ERROR" ||
+            checkData.type === "IP_NOT_AUTHORIZED"
+          ) {
+            errorMessage =
+              "IP não autorizado para acessar o MongoDB. Por favor, configure o MongoDB Atlas para permitir acesso de todos os IPs (0.0.0.0/0).";
             toast.error(errorMessage, {
               duration: 10000, // Mensagem mais longa para erros importantes
             });
           } else if (checkData.error?.startsWith("DATABASE_")) {
-            errorMessage = checkData.message || "Erro de conexão com o banco de dados. Tente novamente mais tarde.";
+            errorMessage =
+              checkData.message ||
+              "Erro de conexão com o banco de dados. Tente novamente mais tarde.";
             toast.error(errorMessage, {
               duration: 7000,
             });
@@ -69,41 +69,14 @@ function LoginPageContent() {
               duration: 5000,
             });
           }
-          
-          // Log completo do erro para diagnóstico
-          const errorDetails = {
-            error: checkData.error,
-            message: checkData.message,
-            type: checkData.type,
-            diagnostic: checkData.diagnostic,
-            debug: checkData.debug,
-            suggestion: checkData.suggestion,
-            fixSteps: checkData.fixSteps,
-            fullResponse: checkData,
-          };
-          
-          // Em desenvolvimento, mostrar mais detalhes no console
-          if (process.env.NODE_ENV === "development") {
-            console.error("Erro na verificação de credenciais:", errorDetails);
-          } else {
-            // Em produção, mostrar apenas informações essenciais
-            console.error("Erro na verificação de credenciais:", {
-              error: checkData.error,
-              message: checkData.message,
-              type: checkData.type,
-            });
-          }
-          
+
           setLoading(false);
           return;
         }
       } catch (fetchError: any) {
-        console.error("Erro ao verificar credenciais:", {
-          message: fetchError?.message,
-          name: fetchError?.name,
-          stack: fetchError?.stack,
-        });
-        const errorMessage = fetchError?.message || "Erro ao conectar com o servidor. Verifique sua conexão e tente novamente.";
+        const errorMessage =
+          fetchError?.message ||
+          "Erro ao conectar com o servidor. Verifique sua conexão e tente novamente.";
         toast.error(errorMessage, {
           duration: 5000,
         });
@@ -120,7 +93,6 @@ function LoginPageContent() {
         });
 
         if (!result) {
-          console.error("signIn retornou null/undefined");
           toast.error("Não foi possível fazer login. Tente novamente.", {
             duration: 5000,
           });
@@ -131,61 +103,74 @@ function LoginPageContent() {
         if (result.error) {
           // Mapear erros do NextAuth para mensagens amigáveis
           let errorMessage = "Erro ao processar autenticação. Tente novamente.";
-          
+
           switch (result.error) {
             case "EMAIL_PASSWORD_REQUIRED":
               errorMessage = "Por favor, preencha email e senha.";
               break;
             case "ACCOUNT_INACTIVE":
-              errorMessage = "Sua conta está inativa. Entre em contato com o suporte.";
+              errorMessage =
+                "Sua conta está inativa. Entre em contato com o suporte.";
               break;
             case "ACCOUNT_SUSPENDED":
-              errorMessage = "Sua conta foi suspensa. Entre em contato com o suporte.";
+              errorMessage =
+                "Sua conta foi suspensa. Entre em contato com o suporte.";
               break;
             case "ACCOUNT_PENDING":
               errorMessage = "Sua conta está pendente de aprovação.";
               break;
             case "INVALID_PASSWORD":
-              errorMessage = "Senha incorreta. Tente novamente ou recupere sua senha.";
+              errorMessage =
+                "Senha incorreta. Tente novamente ou recupere sua senha.";
               break;
             case "EMAIL_NOT_FOUND":
-              errorMessage = "Email não encontrado. Verifique se o email está correto ou crie uma conta.";
+              errorMessage =
+                "Email não encontrado. Verifique se o email está correto ou crie uma conta.";
               break;
             case "DATABASE_CONNECTION_ERROR":
-              errorMessage = "Erro de conexão com o servidor. Tente novamente mais tarde.";
+              errorMessage =
+                "Erro de conexão com o servidor. Tente novamente mais tarde.";
               break;
             case "DATABASE_ACCESS_ERROR":
-              errorMessage = "IP não autorizado para acessar o MongoDB. Configure o MongoDB Atlas para permitir acesso de todos os IPs (0.0.0.0/0).";
+              errorMessage =
+                "IP não autorizado para acessar o MongoDB. Configure o MongoDB Atlas para permitir acesso de todos os IPs (0.0.0.0/0).";
               break;
             case "DATABASE_CONFIG_ERROR":
-              errorMessage = "Erro na configuração do banco de dados. Verifique as variáveis de ambiente.";
+              errorMessage =
+                "Erro na configuração do banco de dados. Verifique as variáveis de ambiente.";
               break;
             case "DATABASE_HOST_ERROR":
-              errorMessage = "Não foi possível conectar ao servidor do banco de dados. Verifique a configuração.";
+              errorMessage =
+                "Não foi possível conectar ao servidor do banco de dados. Verifique a configuração.";
               break;
             case "DATABASE_AUTH_ERROR":
-              errorMessage = "Erro de autenticação com o banco de dados. Verifique as credenciais.";
+              errorMessage =
+                "Erro de autenticação com o banco de dados. Verifique as credenciais.";
               break;
             case "DATABASE_TIMEOUT_ERROR":
-              errorMessage = "Timeout ao conectar ao banco de dados. Verifique se o IP está autorizado no MongoDB Atlas.";
+              errorMessage =
+                "Timeout ao conectar ao banco de dados. Verifique se o IP está autorizado no MongoDB Atlas.";
               break;
             case "DATABASE_REFUSED_ERROR":
-              errorMessage = "Conexão recusada pelo servidor do banco de dados. Verifique a configuração.";
+              errorMessage =
+                "Conexão recusada pelo servidor do banco de dados. Verifique a configuração.";
               break;
             case "DATABASE_SSL_ERROR":
-              errorMessage = "Erro de SSL ao conectar ao banco de dados. Verifique a configuração.";
+              errorMessage =
+                "Erro de SSL ao conectar ao banco de dados. Verifique a configuração.";
               break;
             case "AUTH_ERROR":
-              errorMessage = "Erro ao processar autenticação. Tente novamente mais tarde.";
+              errorMessage =
+                "Erro ao processar autenticação. Tente novamente mais tarde.";
               break;
             case "CredentialsSignin":
-              errorMessage = "Credenciais inválidas. Verifique seu email e senha.";
+              errorMessage =
+                "Credenciais inválidas. Verifique seu email e senha.";
               break;
             default:
-              console.error("Erro desconhecido do NextAuth:", result.error);
               errorMessage = `Não foi possível fazer login: ${result.error}`;
           }
-          
+
           toast.error(errorMessage, {
             duration: 5000,
           });
@@ -197,19 +182,19 @@ function LoginPageContent() {
           const callbackUrl = searchParams.get("callbackUrl") || "/feed";
           router.push(callbackUrl);
         } else {
-          console.error("Resultado inesperado do signIn:", result);
           toast.error("Não foi possível fazer login. Tente novamente.", {
             duration: 5000,
           });
         }
       } catch (signInError: any) {
-        console.error("Erro no signIn:", signInError);
-        toast.error("Erro ao processar autenticação. Tente novamente mais tarde.", {
-          duration: 5000,
-        });
+        toast.error(
+          "Erro ao processar autenticação. Tente novamente mais tarde.",
+          {
+            duration: 5000,
+          }
+        );
       }
     } catch (error: any) {
-      console.error("Erro geral no login:", error);
       toast.error("Erro ao fazer login. Tente novamente mais tarde.", {
         duration: 5000,
       });
@@ -303,15 +288,17 @@ function LoginPageContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <section className="flex min-h-screen px-4 py-16 md:py-32">
-        <div className="bg-card m-auto h-fit w-full max-w-sm rounded-[calc(var(--radius)+.125rem)] border p-8 shadow-md">
-          <div className="flex items-center justify-center">
-            <p>Carregando...</p>
+    <Suspense
+      fallback={
+        <section className="flex min-h-screen px-4 py-16 md:py-32">
+          <div className="bg-card m-auto h-fit w-full max-w-sm rounded-[calc(var(--radius)+.125rem)] border p-8 shadow-md">
+            <div className="flex items-center justify-center">
+              <p>Carregando...</p>
+            </div>
           </div>
-        </div>
-      </section>
-    }>
+        </section>
+      }
+    >
       <LoginPageContent />
     </Suspense>
   );

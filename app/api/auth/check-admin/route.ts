@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ isAdmin: true });
   } catch (error) {
-    console.error("Check admin error:", error);
     return NextResponse.json(
       { error: "Erro ao verificar permissões" },
       { status: 500 }
