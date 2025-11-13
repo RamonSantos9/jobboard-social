@@ -5,17 +5,7 @@ import UserModel from "@/models/User";
 import CompanyModel from "@/models/Company";
 
 // Validação de variáveis de ambiente
-if (!process.env.NEXTAUTH_SECRET) {
-  console.error(
-    "NEXTAUTH_SECRET não está definido. Configure esta variável de ambiente."
-  );
-}
-
-if (!process.env.NEXTAUTH_URL && process.env.NODE_ENV === "production") {
-  console.warn(
-    "NEXTAUTH_URL não está definido em produção. Isso pode causar problemas."
-  );
-}
+// NEXTAUTH_SECRET e NEXTAUTH_URL são validados pelo NextAuth
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true, // Necessário para produção na Vercel
@@ -112,20 +102,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           // Email não encontrado (nem como usuário nem como empresa)
           throw new Error("EMAIL_NOT_FOUND");
         } catch (error: unknown) {
-          console.error("Auth error:", error);
-
           // Verificar se é um erro de conexão com o banco de dados
           // O connectDB() lança erros com a propriedade 'details' contendo informações estruturadas
           if (error instanceof Error && (error as any).details) {
             const errorDetails = (error as any).details;
             const errorType = errorDetails.type || "UNKNOWN_ERROR";
-
-            console.error("Erro de conexão com o banco de dados:", {
-              type: errorType,
-              message: errorDetails.message,
-              code: errorDetails.code,
-              suggestion: errorDetails.suggestion,
-            });
 
             // Mapear tipo de erro para código de erro apropriado
             let errorCode = "DATABASE_CONNECTION_ERROR";
@@ -176,7 +157,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               error.message.includes("timeout") ||
               error.message.includes("MongoNetworkError"))
           ) {
-            console.error("Erro de conexão com o banco de dados:", error);
             const dbError = new Error("Erro de conexão com o banco de dados");
             (dbError as any).code = "DATABASE_CONNECTION_ERROR";
             throw dbError;
@@ -207,7 +187,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
 
           // Para outros erros, lançar erro genérico
-          console.error("Erro desconhecido na autenticação:", error);
           throw new Error("AUTH_ERROR");
         }
       },

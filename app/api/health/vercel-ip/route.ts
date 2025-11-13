@@ -51,10 +51,22 @@ export async function GET(request: NextRequest) {
           step7: "Aguarde 2-5 minutos para propagação",
           note: "⚠️ IMPORTANTE: O IP da Vercel pode mudar a cada deploy. Para produção, considere usar MongoDB Atlas Private Endpoint para maior segurança e estabilidade.",
         },
+        solutionForFlex: {
+          title: "Solução para MongoDB Atlas Flex (sem Private Endpoint)",
+          description: "Como você está usando MongoDB Atlas Flex, o Private Endpoint não está disponível. Use esta solução:",
+          steps: [
+            "1. Adicione o IP mostrado acima no MongoDB Atlas Network Access",
+            "2. Após cada deploy na Vercel, verifique se o IP mudou acessando esta rota novamente",
+            "3. Se o IP mudar, adicione o novo IP no MongoDB Atlas",
+            "4. Mantenha os IPs antigos por alguns dias antes de remover (caso precise fazer rollback)",
+          ],
+          tip: "💡 DICA: Crie um bookmark desta rota (/api/health/vercel-ip) para verificar rapidamente o IP após cada deploy.",
+        },
         alternative: {
-          title: "Alternativa Segura: MongoDB Atlas Private Endpoint",
-          description: "Para produção, recomenda-se usar Private Endpoint que conecta via rede privada, sem necessidade de liberar IPs públicos.",
+          title: "Alternativa: Upgrade para M10+ (se possível)",
+          description: "Se você puder fazer upgrade para M10 ou superior, poderá usar Private Endpoint que resolve este problema permanentemente.",
           link: "https://www.mongodb.com/docs/atlas/security-vpc-peering/",
+          note: "Esta é uma solução paga, mas oferece maior segurança e estabilidade.",
         },
         diagnostic: {
           timestamp: new Date().toISOString(),
