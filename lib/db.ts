@@ -91,13 +91,18 @@ function analyzeError(error: any): ErrorDetails {
   const errorName = error?.name;
   const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL;
 
-  // Log completo do erro para diagnóstico
-  console.error("[MongoDB Error Analysis]", {
+  // Log completo do erro ORIGINAL antes de analisar (importante para diagnóstico)
+  console.error("[MongoDB Error Analysis] Erro original completo:", {
     message: errorMessage,
     code: errorCode,
     codeName: errorCodeName,
     name: errorName,
-    stack: error?.stack?.substring(0, 500), // Primeiros 500 caracteres do stack
+    stack: error?.stack, // Stack completo para diagnóstico
+    error: error, // Objeto de erro completo
+    // Incluir informações adicionais se disponíveis
+    ...(error?.reason && { reason: error.reason }),
+    ...(error?.cause && { cause: error.cause }),
+    ...(error?.topologyVersion && { topologyVersion: error.topologyVersion }),
   });
 
   // Detectar erros de DNS/Hostname (prioridade alta)
@@ -177,22 +182,34 @@ function analyzeError(error: any): ErrorDetails {
 
   // Detectar erros de conexão recusada
   if (errorCode === "ECONNREFUSED" || errorMessage.includes("ECONNREFUSED") || errorMessage.includes("connection refused")) {
-    // Em produção com Atlas, connection refused pode indicar IP não autorizado
-    if (isProduction && MONGODB_URI?.includes("mongodb+srv://")) {
+    // NÃO assumir que ECONNREFUSED = IP não autorizado
+    // Só classificar como IP_NOT_AUTHORIZED se houver indicações explícitas na mensagem
+    const hasExplicitIPError = 
+      errorMessage.toLowerCase().includes("not authorized") ||
+      errorMessage.toLowerCase().includes("ip address") ||
+      errorMessage.toLowerCase().includes("whitelist") ||
+      errorMessage.toLowerCase().includes("access denied") ||
+      errorMessage.toLowerCase().includes("network access") ||
+      errorMessage.toLowerCase().includes("ip whitelist");
+    
+    // Se houver indicações explícitas de problema de IP E estiver em produção com Atlas
+    if (hasExplicitIPError && isProduction && MONGODB_URI?.includes("mongodb+srv://")) {
       return {
         type: "IP_NOT_AUTHORIZED",
         code: errorCode,
         codeName: errorCodeName,
-        message: "Conexão recusada - IP provavelmente não está na whitelist do MongoDB Atlas",
+        message: "Conexão recusada - IP não autorizado para acessar o MongoDB",
         suggestion: "1. Acesse MongoDB Atlas → Network Access\n2. Clique em 'Add IP Address'\n3. Adicione '0.0.0.0/0' para permitir todos os IPs\n4. Aguarde 2-5 minutos para a propagação",
       };
     }
+    
+    // Caso contrário, classificar como conexão recusada genérica
     return {
       type: "CONNECTION_REFUSED",
       code: errorCode,
       codeName: errorCodeName,
       message: "Conexão recusada pelo servidor MongoDB",
-      suggestion: "Verifique se o servidor MongoDB está ativo e se a porta está correta. Para MongoDB Atlas, verifique se o IP está na whitelist (Network Access).",
+      suggestion: "Verifique: 1) Se o servidor MongoDB está ativo, 2) Se a porta está correta, 3) Se não há problemas de firewall, 4) Para MongoDB Atlas, verifique se o IP está na whitelist (Network Access) e se o cluster está rodando.",
     };
   }
 
@@ -208,14 +225,22 @@ function analyzeError(error: any): ErrorDetails {
   }
 
   // Detectar erros explícitos de IP não autorizado ou whitelist
-  if (
-    errorMessage.toLowerCase().includes("not authorized") || 
-    errorMessage.toLowerCase().includes("ip address") ||
-    errorMessage.toLowerCase().includes("whitelist") ||
-    errorMessage.toLowerCase().includes("access denied") ||
-    errorMessage.toLowerCase().includes("network access") ||
-    errorCodeName === "MongoNetworkError" && errorMessage.includes("access")
-  ) {
+  // Tornar a detecção mais precisa - verificar se realmente indica problema de IP/whitelist
+  const lowerMessage = errorMessage.toLowerCase();
+  const hasExplicitIPWhitelistError = 
+    // Verificações mais específicas para erros de IP/whitelist
+    lowerMessage.includes("not authorized to access") ||
+    lowerMessage.includes("ip address is not whitelisted") ||
+    lowerMessage.includes("ip whitelist") ||
+    lowerMessage.includes("network access") && (lowerMessage.includes("denied") || lowerMessage.includes("not allowed")) ||
+    lowerMessage.includes("access denied") && (lowerMessage.includes("ip") || lowerMessage.includes("network")) ||
+    // Verificar se é um MongoNetworkError com mensagem específica sobre IP/access
+    (errorCodeName === "MongoNetworkError" && (
+      lowerMessage.includes("ip") && (lowerMessage.includes("denied") || lowerMessage.includes("not authorized") || lowerMessage.includes("whitelist")) ||
+      lowerMessage.includes("network access") && lowerMessage.includes("denied")
+    ));
+  
+  if (hasExplicitIPWhitelistError) {
     return {
       type: "IP_NOT_AUTHORIZED",
       code: errorCode,
@@ -442,10 +467,35 @@ export async function connectDB() {
         return mongooseConnection;
       })
       .catch((error: any) => {
+        // Log do erro ORIGINAL completo antes de analisar (crítico para diagnóstico)
+        // Tentar serializar o erro de forma segura
+        let errorString = "Não foi possível serializar";
+        try {
+          errorString = JSON.stringify(error, Object.getOwnPropertyNames(error), 2);
+        } catch (serializeError) {
+          // Se houver erro na serialização (ex: referências circulares), usar toString
+          errorString = String(error);
+        }
+        
+        console.error("[MongoDB] ❌ Erro original capturado (antes da análise):", {
+          message: error?.message,
+          name: error?.name,
+          code: error?.code,
+          codeName: error?.codeName,
+          stack: error?.stack, // Stack completo
+          errorString: errorString, // Erro serializado de forma segura
+          // Informações adicionais do MongoDB se disponíveis
+          ...(error?.reason && { reason: error.reason }),
+          ...(error?.cause && { cause: error.cause }),
+          ...(error?.topologyVersion && { topologyVersion: error.topologyVersion }),
+          ...(error?.generation && { generation: error.generation }),
+          ...(error?.maxWireVersion && { maxWireVersion: error.maxWireVersion }),
+        });
+        
         const errorDetails = analyzeError(error);
         
-        // Log completo do erro para diagnóstico
-        console.error("[MongoDB] ❌ Erro detalhado ao conectar:", {
+        // Log completo do erro analisado para diagnóstico
+        console.error("[MongoDB] ❌ Erro analisado:", {
           type: errorDetails.type,
           code: errorDetails.code,
           codeName: errorDetails.codeName,
@@ -453,10 +503,14 @@ export async function connectDB() {
           originalMessage: error?.message,
           originalName: error?.name,
           originalCode: error?.code,
-          stack: error?.stack?.substring(0, 300), // Primeiros 300 caracteres do stack
+          originalCodeName: error?.codeName,
+          stack: error?.stack, // Stack completo para diagnóstico
           suggestion: errorDetails.suggestion,
           environment: isProduction ? "production" : "development",
           atlas: isAtlas ? "yes" : "no",
+          // Incluir informações adicionais para diagnóstico
+          ...(error?.reason && { originalReason: error.reason }),
+          ...(error?.cause && { originalCause: error.cause }),
         });
         
         // Limpar cache completamente quando há erro

@@ -32,18 +32,41 @@ export async function POST(request: NextRequest) {
       await connectDB();
       console.log("[Login API] ✅ Conexão com banco de dados estabelecida com sucesso");
     } catch (dbError: any) {
+      // Log do erro ORIGINAL completo antes de processar (crítico para diagnóstico)
+      console.error("[Login API] ❌ Erro original capturado:", {
+        message: dbError?.message,
+        name: dbError?.name,
+        code: dbError?.code,
+        codeName: dbError?.codeName,
+        stack: dbError?.stack, // Stack completo para diagnóstico
+        // Incluir erro original se disponível
+        originalError: dbError?.originalError ? {
+          message: dbError.originalError?.message,
+          name: dbError.originalError?.name,
+          code: dbError.originalError?.code,
+          codeName: dbError.originalError?.codeName,
+        } : null,
+        // Informações adicionais do MongoDB se disponíveis
+        ...(dbError?.originalError?.reason && { reason: dbError.originalError.reason }),
+        ...(dbError?.originalError?.cause && { cause: dbError.originalError.cause }),
+      });
+      
       // Extrair detalhes do erro
       const errorDetails = dbError?.details || {};
       const errorType = errorDetails.type || "UNKNOWN_ERROR";
       const errorMessage = errorDetails.message || dbError?.message || "Erro de conexão com o servidor. Tente novamente mais tarde.";
       const errorSuggestion = errorDetails.suggestion || null;
 
-      console.error("[Login API] ❌ Erro ao conectar com banco de dados:", {
+      console.error("[Login API] ❌ Erro analisado:", {
         type: errorType,
         message: errorMessage,
         code: errorDetails.code || dbError?.code,
         codeName: errorDetails.codeName || dbError?.codeName,
         suggestion: errorSuggestion,
+        originalMessage: dbError?.originalError?.message || dbError?.message,
+        originalName: dbError?.originalError?.name || dbError?.name,
+        originalCode: dbError?.originalError?.code || dbError?.code,
+        originalCodeName: dbError?.originalError?.codeName || dbError?.codeName,
       });
 
       // Mapear código de erro baseado no tipo
@@ -127,13 +150,30 @@ export async function POST(request: NextRequest) {
         // Incluir código se disponível (não é sensível)
         ...(errorDetails.code && { code: errorDetails.code }),
         ...(errorDetails.codeName && { codeName: errorDetails.codeName }),
+        // Incluir informações do erro original para diagnóstico
+        originalErrorName: dbError?.originalError?.name || dbError?.name,
+        originalErrorCode: dbError?.originalError?.code || dbError?.code,
+        originalErrorCodeName: dbError?.originalError?.codeName || dbError?.codeName,
+        originalErrorMessage: dbError?.originalError?.message || dbError?.message,
+        // Informações adicionais do MongoDB se disponíveis
+        ...(dbError?.originalError?.reason && { originalReason: dbError.originalError.reason }),
+        ...(dbError?.originalError?.cause && { originalCause: dbError.originalError.cause }),
       };
 
       // Em desenvolvimento, incluir mais detalhes
       if (process.env.NODE_ENV === "development") {
         response.debug = {
           originalError: dbError?.originalError?.message,
+          originalErrorFull: dbError?.originalError,
           stack: dbError?.stack,
+          fullError: dbError,
+        };
+      } else {
+        // Em produção, incluir informações úteis mas não sensíveis
+        response.debug = {
+          originalErrorName: dbError?.originalError?.name || dbError?.name,
+          originalErrorCode: dbError?.originalError?.code || dbError?.code,
+          originalErrorCodeName: dbError?.originalError?.codeName || dbError?.codeName,
         };
       }
 
