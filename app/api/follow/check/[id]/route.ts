@@ -18,11 +18,33 @@ export async function GET(
       );
     }
 
-    await connectDB();
+    try {
+      await connectDB();
+    } catch (dbError: any) {
+      return NextResponse.json(
+        {
+          error: "Erro de conexão com o banco de dados",
+        },
+        { status: 500 }
+      );
+    }
+
+    // Garantir que o modelo Connection está registrado
+    if (!mongoose.models.Connection) {
+      await import("@/models/Connection");
+    }
 
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") || "user";
+
+    // Validar tipo
+    if (type !== "user" && type !== "company") {
+      return NextResponse.json(
+        { error: "Tipo inválido. Deve ser 'user' ou 'company'" },
+        { status: 400 }
+      );
+    }
 
     // Validar e converter IDs
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -41,17 +63,59 @@ export async function GET(
     }
 
     // Verificar se está seguindo
-    const connection = await Connection.findOne({
-      followerId: new mongoose.Types.ObjectId(followerId),
-      followingId: new mongoose.Types.ObjectId(id),
-      type,
-      status: "accepted",
-    });
+    let connection;
+    try {
+      connection = await Connection.findOne({
+        followerId: new mongoose.Types.ObjectId(followerId),
+        followingId: new mongoose.Types.ObjectId(id),
+        type,
+        status: "accepted",
+      });
+    } catch (queryError: any) {
+      // Se for erro de conexão, retornar erro específico
+      if (
+        queryError?.message?.includes("connection") ||
+        queryError?.message?.includes("timeout") ||
+        queryError?.message?.includes("Mongo") ||
+        queryError?.name?.includes("Mongo")
+      ) {
+        return NextResponse.json(
+          {
+            error: "Erro de conexão com o banco de dados",
+          },
+          { status: 500 }
+        );
+      }
+      // Para outros erros, retornar erro genérico
+      return NextResponse.json(
+        {
+          error: "Erro ao verificar se está seguindo",
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       isFollowing: !!connection,
     });
   } catch (error: any) {
+    // Verificar se é erro de conexão com banco
+    if (
+      error instanceof Error &&
+      (error.message.includes("MongoServerError") ||
+        error.message.includes("Mongoose") ||
+        error.message.includes("connection") ||
+        error.message.includes("timeout") ||
+        error.message.includes("MongoNetworkError"))
+    ) {
+      return NextResponse.json(
+        {
+          error: "Erro de conexão com o banco de dados",
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
       {
         error: "Erro ao verificar se está seguindo",

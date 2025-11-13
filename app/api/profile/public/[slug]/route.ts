@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import connectDB from "@/lib/db";
 import Profile from "@/models/Profile";
 import User from "@/models/User";
@@ -9,33 +10,40 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    await connectDB();
-    const { slug } = await params;
+    try {
+      await connectDB();
+    } catch (dbError: any) {
+      return NextResponse.json(
+        {
+          error: "Erro de conexão com o banco de dados",
+        },
+        { status: 500 }
+      );
+    }
 
-    console.log("Searching for profile with slug:", slug);
+    // Garantir que o modelo Profile está registrado
+    if (!mongoose.models.Profile) {
+      await import("@/models/Profile");
+    }
+
+    const { slug } = await params;
 
     // Primeiro, tentar buscar por slug exato
     let profile = await Profile.findOne({ slug })
       .populate("userId", "name email")
       .lean();
 
-    console.log("Found profile (exact):", profile);
-
     // Se não encontrou, tentar buscar por slug case-insensitive
     if (!profile) {
-      console.log("Trying case-insensitive search...");
       profile = await Profile.findOne({
         slug: { $regex: new RegExp(`^${slug}$`, "i") },
       })
         .populate("userId", "name email")
         .lean();
-
-      console.log("Found profile (case-insensitive):", profile);
     }
 
     // Se ainda não encontrou, tentar buscar por nome (fallback)
     if (!profile) {
-      console.log("Trying name-based search...");
       const nameParts = slug.split("-");
       const firstName = nameParts[0];
 
@@ -44,12 +52,9 @@ export async function GET(
       })
         .populate("userId", "name email")
         .lean();
-
-      console.log("Found profile (name-based):", profile);
     }
 
     if (!profile) {
-      console.log("Profile not found for slug:", slug);
       return NextResponse.json(
         { error: "Perfil não encontrado" },
         { status: 404 }
@@ -58,7 +63,6 @@ export async function GET(
 
     // Garantir que o perfil tem slug
     if (!(profile as any)?.slug) {
-      console.log("Profile has no slug, generating one...");
       const newSlug = await generateUniqueSlugForProfile(
         (profile as any)?.firstName || "Usuario",
         (profile as any)?.lastName || "Anonimo",
@@ -68,7 +72,6 @@ export async function GET(
       // Atualizar o perfil com o slug
       await Profile.findByIdAndUpdate((profile as any)?._id, { slug: newSlug });
       (profile as any).slug = newSlug;
-      console.log("Profile updated with slug:", newSlug);
     }
 
     // Garantir que followersCount está incluído (já deve estar no profile, mas garantimos default 0)
@@ -79,13 +82,26 @@ export async function GET(
 
     return NextResponse.json({ profile: profileWithFollowers });
   } catch (error: any) {
-    console.error("Public profile fetch error:", error);
-    console.error("Error details:", error.message);
-    console.error("Stack trace:", error.stack);
+    // Verificar se é erro de conexão com banco
+    if (
+      error instanceof Error &&
+      (error.message.includes("MongoServerError") ||
+        error.message.includes("Mongoose") ||
+        error.message.includes("connection") ||
+        error.message.includes("timeout") ||
+        error.message.includes("MongoNetworkError"))
+    ) {
+      return NextResponse.json(
+        {
+          error: "Erro de conexão com o banco de dados",
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
       {
         error: "Erro ao buscar perfil público",
-        details: error.message,
       },
       { status: 500 }
     );
