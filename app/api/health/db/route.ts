@@ -87,6 +87,9 @@ export async function GET(request: NextRequest) {
       connectionTiming.duration = connectionTiming.end - connectionTiming.start;
       
       connectionStatus = "error";
+      
+      // Incluir o erro ORIGINAL completo para diagnóstico real
+      const originalError = error?.originalError || error;
       connectionError = {
         type: error?.details?.type || "UNKNOWN_ERROR",
         message: error?.details?.message || error?.message || "Erro desconhecido",
@@ -94,6 +97,15 @@ export async function GET(request: NextRequest) {
         codeName: error?.details?.codeName || error?.codeName,
         suggestion: error?.details?.suggestion || null,
         connectionTiming: connectionTiming.duration,
+        // ERRO ORIGINAL REAL (sem classificação) - importante para diagnóstico
+        originalError: {
+          name: originalError?.name,
+          message: originalError?.message,
+          code: originalError?.code,
+          codeName: originalError?.codeName,
+          ...(originalError?.reason && { reason: originalError.reason }),
+          ...(originalError?.cause && { cause: originalError.cause }),
+        },
       };
     }
 
@@ -197,13 +209,14 @@ function getRecommendations(error: any): string[] {
       break;
     case "TIMEOUT":
     case "SERVER_SELECTION_TIMEOUT":
-      recommendations.push("Adicione o IP 0.0.0.0/0 na Network Access do MongoDB Atlas");
-      recommendations.push("Vá em MongoDB Atlas → Network Access → Add IP Address → 0.0.0.0/0");
-      recommendations.push("Aguarde alguns minutos para que as mudanças sejam aplicadas");
+      recommendations.push("Verifique os logs do servidor para ver o erro real");
+      recommendations.push("Timeout pode ser causado por: latência de rede, problemas temporários, ou configuração incorreta");
+      recommendations.push("Para Vercel: Verifique os logs em Vercel Dashboard → Deployments → Functions → Logs");
       break;
     case "IP_NOT_AUTHORIZED":
-      recommendations.push("Adicione o IP do servidor na whitelist do MongoDB Atlas");
-      recommendations.push("Para permitir todos os IPs, adicione 0.0.0.0/0");
+      recommendations.push("Verifique os logs do servidor para confirmar se é realmente erro de IP");
+      recommendations.push("Para Vercel: Os IPs mudam a cada deploy. Considere usar MongoDB Atlas Private Endpoint ou verificar os logs para ver o IP real");
+      recommendations.push("Acesse Vercel Dashboard → Deployments → Functions → Logs para ver o erro original");
       break;
     case "CONNECTION_REFUSED":
       recommendations.push("Verifique se o servidor MongoDB está ativo");

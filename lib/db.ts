@@ -166,7 +166,7 @@ function analyzeError(error: any): ErrorDetails {
         code: errorCode,
         codeName: errorCodeName,
         message: "IP não autorizado para acessar o MongoDB",
-        suggestion: "SOLUÇÃO RÁPIDA:\n1. Acesse https://cloud.mongodb.com/ e faça login\n2. Selecione seu projeto (se houver múltiplos)\n3. No menu lateral esquerdo, clique em 'Network Access'\n4. Clique no botão verde 'Add IP Address'\n5. Na modal, selecione 'Allow Access from Anywhere' (isso adiciona automaticamente 0.0.0.0/0)\n6. OU digite manualmente: 0.0.0.0/0\n7. Adicione um comentário opcional (ex: 'Vercel - All IPs')\n8. Clique em 'Confirm'\n9. AGUARDE 3-5 MINUTOS para a propagação\n10. Teste novamente\n\n⚠️ IMPORTANTE:\n- A Vercel usa IPs dinâmicos que mudam constantemente\n- Você DEVE usar 0.0.0.0/0 (permitir todos os IPs)\n- IPs específicos NÃO funcionam com a Vercel\n- Após adicionar, aguarde alguns minutos antes de testar",
+        suggestion: "O erro indica que o IP não está autorizado. Para Vercel: 1) Verifique os logs em Vercel Dashboard para ver o IP real usado, 2) Adicione esse IP específico no MongoDB Atlas Network Access, 3) OU considere usar MongoDB Atlas Private Endpoint para maior segurança. Acesse /api/health/db-raw para ver o erro original completo.",
       };
     }
     
@@ -176,7 +176,7 @@ function analyzeError(error: any): ErrorDetails {
       code: errorCode,
       codeName: errorCodeName,
       message: "Timeout ao conectar ao MongoDB",
-      suggestion: "Verifique: 1) Se o cluster está acessível, 2) Se o IP está na whitelist do MongoDB Atlas (use 0.0.0.0/0 para permitir todos os IPs), 3) Se não há problemas de rede ou firewall, 4) Se o cluster está ativo e rodando. Se o IP já foi liberado, aguarde alguns minutos e tente novamente.",
+      suggestion: "Timeout pode ter várias causas. Verifique: 1) Se o cluster está ativo e acessível, 2) Se há problemas de rede ou firewall, 3) Se a URI está correta, 4) Verifique os logs do servidor para ver o erro original. Acesse /api/health/db-raw para ver o erro real sem classificação.",
     };
   }
 
@@ -199,7 +199,7 @@ function analyzeError(error: any): ErrorDetails {
         code: errorCode,
         codeName: errorCodeName,
         message: "Conexão recusada - IP não autorizado para acessar o MongoDB",
-        suggestion: "1. Acesse MongoDB Atlas → Network Access\n2. Clique em 'Add IP Address'\n3. Adicione '0.0.0.0/0' para permitir todos os IPs\n4. Aguarde 2-5 minutos para a propagação",
+        suggestion: "Conexão recusada pode indicar IP não autorizado. Verifique os logs do servidor para ver o IP real usado. Para Vercel: Verifique os logs em Vercel Dashboard → Deployments → Functions → Logs. Acesse /api/health/db-raw para ver o erro original completo.",
       };
     }
     
@@ -246,7 +246,7 @@ function analyzeError(error: any): ErrorDetails {
       code: errorCode,
       codeName: errorCodeName,
       message: "IP não autorizado para acessar o MongoDB",
-      suggestion: "1. Acesse MongoDB Atlas → Network Access\n2. Clique em 'Add IP Address'\n3. Adicione '0.0.0.0/0' para permitir todos os IPs (recomendado para Vercel)\n4. Aguarde 2-5 minutos para a propagação das mudanças",
+      suggestion: "Erro indica IP não autorizado. Para Vercel: Verifique os logs em Vercel Dashboard para ver o IP real usado e adicione-o no MongoDB Atlas Network Access. Acesse /api/health/db-raw para ver o erro original completo.",
     };
   }
 

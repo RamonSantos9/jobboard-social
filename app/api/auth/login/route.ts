@@ -116,27 +116,22 @@ export async function POST(request: NextRequest) {
       // Para erros de IP não autorizado, incluir instruções detalhadas
       if (errorType === "IP_NOT_AUTHORIZED") {
         response.fixSteps = [
-          "1. Acesse https://cloud.mongodb.com/ e faça login na sua conta",
-          "2. Selecione seu projeto (se houver múltiplos projetos)",
-          "3. No menu lateral esquerdo, clique em 'Network Access'",
-          "4. Verifique se já existe algum IP configurado",
-          "5. Se NÃO existir '0.0.0.0/0', clique em 'Add IP Address'",
-          "6. Na modal que abrir, clique no botão 'ALLOW ACCESS FROM ANYWHERE' (isso adiciona automaticamente 0.0.0.0/0)",
-          "7. OU digite manualmente no campo: 0.0.0.0/0",
-          "8. Adicione um comentário opcional: 'Vercel - All IPs'",
-          "9. Clique em 'Confirm'",
-          "10. AGUARDE 3-5 MINUTOS para a propagação das mudanças",
-          "11. Verifique se o IP aparece na lista com status 'Active'",
-          "12. Teste novamente a conexão",
+          "1. Acesse Vercel Dashboard → Deployments → Functions → Logs",
+          "2. Procure pelo erro original do MongoDB (sem classificação)",
+          "3. OU acesse /api/health/db-raw para ver o erro real",
+          "4. Identifique o IP real usado pela Vercel nos logs",
+          "5. Acesse MongoDB Atlas → Network Access",
+          "6. Adicione o IP específico encontrado nos logs",
+          "7. OU considere usar MongoDB Atlas Private Endpoint para maior segurança",
         ];
-        response.importantNote = "⚠️ IMPORTANTE: A Vercel usa IPs dinâmicos que mudam a cada deploy. Portanto, você DEVE usar 0.0.0.0/0 (permitir todos os IPs). Não é possível usar IPs específicos com a Vercel. Se você já adicionou 0.0.0.0/0, aguarde alguns minutos e verifique se o status está 'Active' no MongoDB Atlas.";
+        response.importantNote = "⚠️ IMPORTANTE: O erro pode não ser realmente de IP não autorizado. Verifique os logs do servidor para ver o erro REAL. Acesse /api/health/db-raw para ver o erro original sem classificação.";
         response.troubleshooting = [
-          "Se já adicionou 0.0.0.0/0 mas ainda dá erro:",
-          "- Verifique se o status está 'Active' (não 'Pending')",
-          "- Aguarde mais alguns minutos (pode levar até 10 minutos)",
-          "- Verifique se não há outras regras de firewall bloqueando",
-          "- Verifique se o cluster está ativo e rodando",
-          "- Tente remover e adicionar novamente o IP 0.0.0.0/0",
+          "Para diagnosticar o problema real:",
+          "- Acesse /api/health/db-raw para ver o erro original completo",
+          "- Verifique os logs em Vercel Dashboard → Deployments → Functions → Logs",
+          "- Procure por '[MongoDB Error Analysis] Erro original completo' nos logs",
+          "- O erro real pode ser diferente de IP não autorizado",
+          "- Considere usar MongoDB Atlas Private Endpoint se precisar de maior segurança",
         ];
       }
 
