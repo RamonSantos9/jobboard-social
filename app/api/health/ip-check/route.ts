@@ -24,6 +24,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Verificar se o IP foi obtido com sucesso
+    if (!currentIp) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Não foi possível obter o IP atual",
+        },
+        { status: 500 }
+      );
+    }
+
     // Lista de IPs conhecidos da Vercel (você pode atualizar esta lista manualmente)
     // Adicione aqui os IPs que você já adicionou no MongoDB Atlas
     const knownIps = process.env.KNOWN_VERCEL_IPS 
