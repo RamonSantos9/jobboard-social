@@ -70,7 +70,30 @@ function LoginPageContent() {
             });
           }
           
-          console.error("Erro na verificação de credenciais:", checkData);
+          // Log completo do erro para diagnóstico
+          const errorDetails = {
+            error: checkData.error,
+            message: checkData.message,
+            type: checkData.type,
+            diagnostic: checkData.diagnostic,
+            debug: checkData.debug,
+            suggestion: checkData.suggestion,
+            fixSteps: checkData.fixSteps,
+            fullResponse: checkData,
+          };
+          
+          // Em desenvolvimento, mostrar mais detalhes no console
+          if (process.env.NODE_ENV === "development") {
+            console.error("Erro na verificação de credenciais:", errorDetails);
+          } else {
+            // Em produção, mostrar apenas informações essenciais
+            console.error("Erro na verificação de credenciais:", {
+              error: checkData.error,
+              message: checkData.message,
+              type: checkData.type,
+            });
+          }
+          
           setLoading(false);
           return;
         }

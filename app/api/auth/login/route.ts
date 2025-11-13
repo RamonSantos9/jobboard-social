@@ -369,6 +369,12 @@ export async function POST(request: NextRequest) {
         {
           error: "DATABASE_CONNECTION_ERROR",
           message: "Erro de conexão com o servidor. Tente novamente mais tarde.",
+          ...(process.env.NODE_ENV === "development" && {
+            debug: {
+              errorName: error?.name,
+              errorMessage: error?.message,
+            },
+          }),
         },
         { status: 500 }
       );
@@ -383,6 +389,35 @@ export async function POST(request: NextRequest) {
         {
           error: "MODEL_ERROR",
           message: "Erro interno do servidor. Entre em contato com o suporte.",
+          ...(process.env.NODE_ENV === "development" && {
+            debug: {
+              errorName: error?.name,
+              errorMessage: error?.message,
+            },
+          }),
+        },
+        { status: 500 }
+      );
+    }
+
+    // Verificar se é um erro com detalhes estruturados (de connectDB)
+    if (error instanceof Error && (error as any).details) {
+      const errorDetails = (error as any).details;
+      const errorType = errorDetails.type || "UNKNOWN_ERROR";
+      
+      return NextResponse.json(
+        {
+          error: "DATABASE_CONNECTION_ERROR",
+          message: errorDetails.message || "Erro de conexão com o banco de dados. Tente novamente mais tarde.",
+          type: errorType,
+          ...(errorDetails.suggestion && { suggestion: errorDetails.suggestion }),
+          ...(process.env.NODE_ENV === "development" && {
+            debug: {
+              errorName: error?.name,
+              errorMessage: error?.message,
+              errorDetails: errorDetails,
+            },
+          }),
         },
         { status: 500 }
       );
@@ -392,6 +427,13 @@ export async function POST(request: NextRequest) {
       {
         error: "AUTH_ERROR",
         message: error?.message || "Erro ao processar login. Tente novamente mais tarde.",
+        ...(process.env.NODE_ENV === "development" && {
+          debug: {
+            errorName: error?.name,
+            errorMessage: error?.message,
+            stack: error?.stack,
+          },
+        }),
       },
       { status: 500 }
     );
