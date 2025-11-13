@@ -15,7 +15,6 @@ import { extractMentions, getUserDisplayName } from "@/lib/extractMentions";
 
 export async function GET(request: NextRequest) {
   try {
-    console.log("Fetching posts...");
     await connectDB();
 
     // Garantir que os modelos estão registrados
@@ -31,14 +30,11 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
 
-    console.log("Searching for posts...");
     const posts = await Post.find()
       .populate("authorId", "email name")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
-
-    console.log("Found posts:", posts.length);
 
     // Obter sessão do usuário
     const session = await auth();
@@ -53,14 +49,18 @@ export async function GET(request: NextRequest) {
 
         // Verificar se o usuário atual está seguindo o autor do post
         let isFollowingAuthor = false;
-        if (userId) {
-          const authorConnection = await Connection.findOne({
-            followerId: userId,
-            followingId: post.authorId._id,
-            type: "user",
-            status: "accepted",
-          }).lean();
-          isFollowingAuthor = !!authorConnection;
+        if (userId && mongoose.Types.ObjectId.isValid(userId) && post.authorId._id) {
+          try {
+            const authorConnection = await Connection.findOne({
+              followerId: new mongoose.Types.ObjectId(userId),
+              followingId: new mongoose.Types.ObjectId(post.authorId._id),
+              type: "user",
+              status: "accepted",
+            }).lean();
+            isFollowingAuthor = !!authorConnection;
+          } catch (error) {
+            // Ignorar erros de query
+          }
         }
 
         // Verificar se o post é de uma empresa e se o usuário está seguindo a empresa
@@ -68,27 +68,35 @@ export async function GET(request: NextRequest) {
         // ou se o autor do post tiver uma empresa associada
         let isFollowingCompany = false;
         const postCompanyId = (post as any).companyId;
-        if (userId && postCompanyId) {
-          const companyConnection = await Connection.findOne({
-            followerId: userId,
-            followingId: postCompanyId,
-            type: "company",
-            status: "accepted",
-          }).lean();
-          isFollowingCompany = !!companyConnection;
-        }
-        
-        // Também verificar se o autor do post tem uma empresa e se o usuário está seguindo essa empresa
-        if (userId && !isFollowingCompany) {
-          const authorUser = (await User.findById(post.authorId._id).select("companyId").lean()) as unknown as Partial<{ _id: mongoose.Types.ObjectId; companyId?: mongoose.Types.ObjectId }> | null;
-          if (authorUser?.companyId) {
-            const authorCompanyConnection = await Connection.findOne({
-              followerId: userId,
-              followingId: authorUser.companyId,
+        if (userId && mongoose.Types.ObjectId.isValid(userId) && postCompanyId && mongoose.Types.ObjectId.isValid(postCompanyId)) {
+          try {
+            const companyConnection = await Connection.findOne({
+              followerId: new mongoose.Types.ObjectId(userId),
+              followingId: new mongoose.Types.ObjectId(postCompanyId),
               type: "company",
               status: "accepted",
             }).lean();
-            isFollowingCompany = !!authorCompanyConnection;
+            isFollowingCompany = !!companyConnection;
+          } catch (error) {
+            // Ignorar erros de query
+          }
+        }
+        
+        // Também verificar se o autor do post tem uma empresa e se o usuário está seguindo essa empresa
+        if (userId && mongoose.Types.ObjectId.isValid(userId) && !isFollowingCompany && post.authorId._id) {
+          try {
+            const authorUser = (await User.findById(post.authorId._id).select("companyId").lean()) as unknown as Partial<{ _id: mongoose.Types.ObjectId; companyId?: mongoose.Types.ObjectId }> | null;
+            if (authorUser?.companyId && mongoose.Types.ObjectId.isValid(authorUser.companyId)) {
+              const authorCompanyConnection = await Connection.findOne({
+                followerId: new mongoose.Types.ObjectId(userId),
+                followingId: new mongoose.Types.ObjectId(authorUser.companyId),
+                type: "company",
+                status: "accepted",
+              }).lean();
+              isFollowingCompany = !!authorCompanyConnection;
+            }
+          } catch (error) {
+            // Ignorar erros de query
           }
         }
 
@@ -124,14 +132,18 @@ export async function GET(request: NextRequest) {
 
                 // Verificar se o usuário atual segue quem reagiu
                 let isFollowing = false;
-                if (userId) {
-                  const connection = await Connection.findOne({
-                    followerId: userId,
-                    followingId: reaction.userId,
-                    type: "user",
-                    status: "accepted",
-                  }).lean();
-                  isFollowing = !!connection;
+                if (userId && mongoose.Types.ObjectId.isValid(userId) && reaction.userId && mongoose.Types.ObjectId.isValid(reaction.userId)) {
+                  try {
+                    const connection = await Connection.findOne({
+                      followerId: new mongoose.Types.ObjectId(userId),
+                      followingId: new mongoose.Types.ObjectId(reaction.userId),
+                      type: "user",
+                      status: "accepted",
+                    }).lean();
+                    isFollowing = !!connection;
+                  } catch (error) {
+                    // Ignorar erros de query
+                  }
                 }
 
                 reactionData.userId = reaction.userId;
@@ -158,14 +170,18 @@ export async function GET(request: NextRequest) {
 
                 // Verificar se o usuário atual segue a empresa que reagiu
                 let isFollowing = false;
-                if (userId) {
-                  const connection = await Connection.findOne({
-                    followerId: userId,
-                    followingId: reaction.companyId,
-                    type: "company",
-                    status: "accepted",
-                  }).lean();
-                  isFollowing = !!connection;
+                if (userId && mongoose.Types.ObjectId.isValid(userId) && reaction.companyId && mongoose.Types.ObjectId.isValid(reaction.companyId)) {
+                  try {
+                    const connection = await Connection.findOne({
+                      followerId: new mongoose.Types.ObjectId(userId),
+                      followingId: new mongoose.Types.ObjectId(reaction.companyId),
+                      type: "company",
+                      status: "accepted",
+                    }).lean();
+                    isFollowing = !!connection;
+                  } catch (error) {
+                    // Ignorar erros de query
+                  }
                 }
 
                 reactionData.companyId = reaction.companyId;
@@ -180,7 +196,6 @@ export async function GET(request: NextRequest) {
 
               reactionsWithData.push(reactionData);
             } catch (error) {
-              console.error(`Erro ao buscar dados da reação:`, error);
               // Continuar mesmo se houver erro
             }
           }
@@ -330,7 +345,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Posts fetch error:", error);
     return NextResponse.json(
       { error: "Erro ao buscar posts" },
       { status: 500 }
@@ -351,15 +365,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     let { content, mediaUrl, mediaType, mediaUrls, hashtags } = body;
-
-    console.log("Creating post with data:", {
-      content,
-      mediaUrl,
-      mediaType,
-      mediaUrls,
-      hashtags,
-      userId: session.user.id,
-    });
 
     // Validar que há conteúdo ou mídia
     const hasContent = content && content.trim().length > 0;
@@ -397,14 +402,6 @@ export async function POST(request: NextRequest) {
       mediaUrl = undefined;
     }
 
-    console.log("Post data after normalization:", {
-      content: content?.trim() || "",
-      mediaUrl,
-      mediaType,
-      mediaUrls,
-      hashtags: hashtags || [],
-    });
-
     const postData: any = {
       authorId: session.user.id,
       content: content?.trim() || "",
@@ -424,48 +421,23 @@ export async function POST(request: NextRequest) {
       postData.mediaUrls = mediaUrls;
     }
 
-    console.log("Saving post to database:", JSON.stringify(postData, null, 2));
-
     let savedPost;
     try {
       const post = new Post(postData);
       savedPost = await post.save();
-      
-      console.log("Post saved successfully:", {
-        id: savedPost._id,
-        content: savedPost.content,
-        mediaUrl: savedPost.mediaUrl,
-        mediaType: savedPost.mediaType,
-        mediaUrls: savedPost.mediaUrls,
-        authorId: savedPost.authorId,
-      });
 
       // Verificar se o post foi salvo corretamente
       const verifyPost = await Post.findById(savedPost._id);
       if (!verifyPost) {
-        console.error("Post não foi encontrado após salvar!");
         return NextResponse.json(
           { error: "Erro ao verificar post salvo" },
           { status: 500 }
         );
       }
-
-      console.log("Post verified in database:", {
-        id: verifyPost._id,
-        content: verifyPost.content,
-        mediaUrl: verifyPost.mediaUrl,
-        mediaType: verifyPost.mediaType,
-        mediaUrls: verifyPost.mediaUrls,
-      });
     } catch (saveError: any) {
-      console.error("Error saving post to database:", saveError);
-      console.error("Validation errors:", saveError.errors);
-      console.error("Post data that failed:", postData);
       return NextResponse.json(
         {
           error: "Erro ao salvar post no banco de dados",
-          details: saveError.message,
-          validationErrors: saveError.errors,
         },
         { status: 500 }
       );
@@ -545,17 +517,9 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Post creation error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    console.error("Error details:", errorMessage);
-    if (errorStack) {
-      console.error("Stack trace:", errorStack);
-    }
     return NextResponse.json(
       {
         error: "Erro ao criar post",
-        details: errorMessage,
       },
       { status: 500 }
     );
