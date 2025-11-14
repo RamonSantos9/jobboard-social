@@ -118,9 +118,9 @@ export async function GET(request: NextRequest) {
 
     // Calcular scores para vagas
     const jobItems: FeedItem[] = await Promise.all(
-      jobs.map(async (job) => {
-        const jobId = job._id.toString();
-        const companyId = (job as any).companyId?._id?.toString() || (job as any).companyId?.toString();
+      jobs.map(async (job: any) => {
+        const jobId = String(job._id);
+        const companyId = job.companyId?._id?.toString() || job.companyId?.toString();
 
         // Histórico de interações para esta vaga
         const jobInteractions = interactions.filter(
@@ -162,9 +162,9 @@ export async function GET(request: NextRequest) {
 
     // Calcular scores para posts
     const postItems: FeedItem[] = await Promise.all(
-      posts.map(async (post) => {
-        const postId = post._id.toString();
-        const authorId = (post as any).authorId?._id?.toString() || (post as any).authorId?.toString();
+      posts.map(async (post: any) => {
+        const postId = String(post._id);
+        const authorId = post.authorId?._id?.toString() || post.authorId?.toString();
         const isFollowingAuthor = followingUserIds.includes(authorId || "");
 
         // Verificar se post é de empresa seguida
@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
 
         // Contar reações, comentários e shares
         const reactionsCount = (post as any).reactions?.length || 0;
-        const commentsCount = await Comment.countDocuments({ postId: post._id });
+        const commentsCount = await Comment.countDocuments({ postId: new mongoose.Types.ObjectId(postId) });
         const sharesCount = (post as any).sharesCount || 0;
 
         const scoreResult = calculatePostFeedScore(
@@ -287,7 +287,7 @@ export async function GET(request: NextRequest) {
             });
           }
 
-          const commentsCount = await Comment.countDocuments({ postId: post._id });
+          const commentsCount = await Comment.countDocuments({ postId: (post as any)._id });
           const sharesCount = (post as any).sharesCount || 0;
 
           // Verificar reação atual do usuário
@@ -300,7 +300,7 @@ export async function GET(request: NextRequest) {
           }
 
           return {
-            _id: post._id,
+            _id: (post as any)._id,
             type: "post",
             content: (post as any).content,
             mediaUrl: (post as any).mediaUrl,

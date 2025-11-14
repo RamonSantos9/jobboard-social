@@ -102,7 +102,7 @@ export function EditUserDrawer({
     setCurrentUser(user);
     // Converter companyId para string se for ObjectId
     const companyId = user.company?._id 
-      ? (typeof user.company._id === 'string' ? user.company._id : user.company._id.toString())
+      ? (typeof user.company._id === 'string' ? user.company._id : String(user.company._id))
       : "none";
     setFormData({
       name: user.name || "",

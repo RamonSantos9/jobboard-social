@@ -37,7 +37,7 @@ export async function GET(
       .select("-password")
       .populate("profile")
       .populate("companyId", "name admins recruiters")
-      .lean();
+      .lean() as any;
 
     if (!user) {
       return NextResponse.json(
@@ -48,6 +48,7 @@ export async function GET(
 
     // Determinar papel na empresa
     const userObj: any = { ...user };
+    // Verificar se user tem companyId populado
     if (user.companyId && typeof user.companyId === 'object') {
       const company = user.companyId as any;
       userObj.company = {

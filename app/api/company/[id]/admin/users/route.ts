@@ -71,9 +71,9 @@ export async function GET(
       .lean();
 
     // Extrair IDs únicos de candidatos
-    const candidateIds = [...new Set(
+    const candidateIds = Array.from(new Set(
       applications.map((app: any) => app.candidateId?._id?.toString()).filter(Boolean)
-    )];
+    ));
 
     // Buscar usuários com seus perfis (apenas dados públicos)
     const users = await User.find({
