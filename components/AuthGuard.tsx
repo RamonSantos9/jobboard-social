@@ -42,29 +42,39 @@ export default function AuthGuard({
         return;
       }
 
-      // Se requer admin, verificar se é admin da empresa
-      if (requireAdmin && companyId) {
-        try {
-          const response = await fetch(`/api/company/${companyId}`);
-          const data = await response.json();
+      // Se requer admin
+      if (requireAdmin) {
+        // Se há companyId, verificar se é admin da empresa
+        if (companyId) {
+          try {
+            const response = await fetch(`/api/company/${companyId}`);
+            const data = await response.json();
 
-          if (response.ok) {
-            const isAdmin = data.company.admins.some(
-              (admin: any) => admin._id === session.user?.id
-            );
+            if (response.ok) {
+              const isAdmin = data.company.admins.some(
+                (admin: any) => admin._id === session.user?.id
+              );
 
-            if (!isAdmin) {
-              router.push(`/company/${companyId}`);
+              if (!isAdmin) {
+                router.push(`/company/${companyId}`);
+                return;
+              }
+            } else {
+              router.push("/");
               return;
             }
-          } else {
+          } catch (error) {
+            console.error("Erro ao verificar autorização:", error);
             router.push("/");
             return;
           }
-        } catch (error) {
-          console.error("Erro ao verificar autorização:", error);
-          router.push("/");
-          return;
+        } else {
+          // Se não há companyId, verificar se é admin do sistema
+          const userRole = (session.user as any)?.role || session.user?.role;
+          if (!userRole || userRole !== "admin") {
+            router.push("/");
+            return;
+          }
         }
       }
 
@@ -81,7 +91,7 @@ export default function AuthGuard({
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p className="text-gray-600">Verificando autorização...</p>
+            <p className="text-black">Verificando autorização...</p>
           </div>
         </div>
       )

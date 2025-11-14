@@ -112,18 +112,28 @@ export async function POST(
       { new: true, runValidators: false }
     );
 
-    // Remover também dos recrutadores se estiver lá (opcional - pode manter como recrutador)
-    // await Company.findByIdAndUpdate(
-    //   companyId,
-    //   {
-    //     $pull: { 
-    //       recruiters: userIdObjectId
-    //     }
-    //   },
-    //   { new: true, runValidators: false }
-    // );
+    // Buscar empresa atualizada (sem populate primeiro para verificar arrays)
+    const companyAfterUpdate = await Company.findById(companyId);
+    if (!companyAfterUpdate) {
+      return NextResponse.json(
+        { error: "Erro ao buscar empresa atualizada" },
+        { status: 500 }
+      );
+    }
 
-    // Buscar empresa atualizada com dados populados
+    // Verificar se o usuário ainda está nos recruiters (verificar IDs diretamente)
+    const isStillRecruiter = companyAfterUpdate.recruiters.some(
+      (recruiterId: any) => recruiterId.toString() === userId
+    );
+
+    // Se não estiver mais em nenhum dos arrays (admins ou recruiters), limpar companyId
+    if (!isStillRecruiter && userToRemove.companyId?.toString() === companyId) {
+      userToRemove.companyId = null;
+      await userToRemove.save();
+    }
+    // Se ainda estiver nos recruiters, manter o companyId (já está correto)
+
+    // Buscar empresa com dados populados para retornar
     const updatedCompany = await Company.findById(companyId)
       .populate("admins", "name email")
       .populate("recruiters", "name email")

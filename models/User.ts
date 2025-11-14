@@ -13,6 +13,10 @@ export interface IUser extends Document {
   onboardingCompleted: boolean;
   isActive: boolean;
   profile?: mongoose.Types.ObjectId;
+  config?: {
+    username?: string;
+  };
+  dashboardAccess?: boolean; // Acesso ao dashboard liberado pelo admin master
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -69,6 +73,27 @@ const UserSchema = new Schema<IUser>(
       ref: "Profile",
       default: null,
     },
+    config: {
+      username: {
+        type: String,
+        unique: true,
+        sparse: true,
+        trim: true,
+        lowercase: true,
+        validate: {
+          validator: function(v: string) {
+            if (!v) return true; // Allow empty
+            // Username must be alphanumeric, underscores, and hyphens only, no spaces
+            return /^[a-z0-9_-]+$/.test(v);
+          },
+          message: "Username deve conter apenas letras, números, underscores e hífens, sem espaços",
+        },
+      },
+    },
+    dashboardAccess: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
@@ -78,6 +103,12 @@ const UserSchema = new Schema<IUser>(
 // Hash password before saving
 UserSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
+
+  // Verificar se a senha já está hasheada (começa com $2a$, $2b$ ou $2y$)
+  // Se já estiver hasheada, não fazer hash novamente (evitar double hash)
+  if (this.password && /^\$2[ayb]\$.{56}$/.test(this.password)) {
+    return next();
+  }
 
   try {
     const salt = await bcrypt.genSalt(12);

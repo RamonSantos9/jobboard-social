@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AlertCircle } from "lucide-react";
+import LogoIcon from "@/components/LogoIcon";
 
 function RegisterPageContent() {
   const [name, setName] = useState("");
@@ -115,9 +116,7 @@ function RegisterPageContent() {
         <div className="p-8 pb-6">
           <div>
             <Link href="/" aria-label="ir para home">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-lg font-bold text-white">in</span>
-              </div>
+              <LogoIcon size="default" color="black" strokeWidth={300} />
             </Link>
             <h1 className="mb-1 mt-4 text-xl font-semibold">
               {inviteInfo
@@ -230,15 +229,17 @@ function RegisterPageContent() {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={
-      <section className="flex min-h-screen px-4 py-16 md:py-32">
-        <div className="bg-card m-auto h-fit w-full max-w-sm rounded-[calc(var(--radius)+.125rem)] border p-8 shadow-md">
-          <div className="flex items-center justify-center">
-            <p>Carregando...</p>
+    <Suspense
+      fallback={
+        <section className="flex min-h-screen px-4 py-16 md:py-32">
+          <div className="bg-card m-auto h-fit w-full max-w-sm rounded-[calc(var(--radius)+.125rem)] border p-8 shadow-md">
+            <div className="flex items-center justify-center">
+              <p>Carregando...</p>
+            </div>
           </div>
-        </div>
-      </section>
-    }>
+        </section>
+      }
+    >
       <RegisterPageContent />
     </Suspense>
   );

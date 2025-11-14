@@ -148,6 +148,15 @@ export async function PUT(request: NextRequest) {
     // Buscar perfil existente
     let profile = await Profile.findOne({ userId: session.user.id });
 
+    // Verificação de segurança: garantir que o usuário só edite seu próprio perfil
+    // Se o perfil existe, verificar se pertence ao usuário logado
+    if (profile && profile.userId.toString() !== session.user.id) {
+      return NextResponse.json(
+        { error: "Você não tem permissão para editar este perfil" },
+        { status: 403 }
+      );
+    }
+
     // Se não existe, criar um novo
     if (!profile) {
       const user = await User.findById(session.user.id);
@@ -167,13 +176,32 @@ export async function PUT(request: NextRequest) {
         Profile
       );
 
-      profile = new Profile({
+      // Converter datas em arrays de education e experience antes de criar
+      const profileData: any = {
         userId: session.user.id,
         firstName,
         lastName,
         slug,
         ...updates,
-      });
+      };
+
+      if (profileData.education && Array.isArray(profileData.education)) {
+        profileData.education = profileData.education.map((edu: any) => ({
+          ...edu,
+          startDate: edu.startDate ? new Date(edu.startDate) : new Date(),
+          endDate: edu.endDate ? new Date(edu.endDate) : null,
+        }));
+      }
+
+      if (profileData.experience && Array.isArray(profileData.experience)) {
+        profileData.experience = profileData.experience.map((exp: any) => ({
+          ...exp,
+          startDate: exp.startDate ? new Date(exp.startDate) : new Date(),
+          endDate: exp.endDate ? new Date(exp.endDate) : null,
+        }));
+      }
+
+      profile = new Profile(profileData);
 
       await profile.save();
 
@@ -205,6 +233,36 @@ export async function PUT(request: NextRequest) {
         }
       }
 
+      // Converter datas em arrays de education e experience
+      if (updates.education && Array.isArray(updates.education)) {
+        updates.education = updates.education.map((edu: any) => ({
+          ...edu,
+          startDate: edu.startDate ? new Date(edu.startDate) : new Date(),
+          endDate: edu.endDate ? new Date(edu.endDate) : null,
+        }));
+      }
+
+      if (updates.experience && Array.isArray(updates.experience)) {
+        updates.experience = updates.experience.map((exp: any) => ({
+          ...exp,
+          startDate: exp.startDate ? new Date(exp.startDate) : new Date(),
+          endDate: exp.endDate ? new Date(exp.endDate) : null,
+        }));
+      }
+
+      // Fazer merge do contactInfo se existir
+      if (updates.contactInfo) {
+        const existingContactInfo = profile.contactInfo
+          ? (profile.contactInfo as any).toObject
+            ? (profile.contactInfo as any).toObject()
+            : profile.contactInfo
+          : {};
+        updates.contactInfo = {
+          ...existingContactInfo,
+          ...updates.contactInfo,
+        };
+      }
+
       // Atualizar campos
       Object.keys(updates).forEach((key) => {
         if (updates[key] !== undefined) {
@@ -219,10 +277,19 @@ export async function PUT(request: NextRequest) {
       message: "Perfil atualizado com sucesso",
       profile: profile.toObject(),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Profile update error:", error);
+    
+    // Retornar mensagem de erro mais específica
+    let errorMessage = "Erro ao atualizar perfil";
+    if (error.name === "ValidationError") {
+      errorMessage = `Erro de validação: ${error.message}`;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     return NextResponse.json(
-      { error: "Erro ao atualizar perfil" },
+      { error: errorMessage },
       { status: 500 }
     );
   }

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 
 import JobCard from "@/components/JobCard";
 import PostCard from "@/components/PostCard";
+import PostCardSkeleton from "@/components/PostCardSkeleton";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import CreatePostBox from "./CreatePostBox";
@@ -92,83 +93,93 @@ interface Post {
 export default function MainFeed() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const { data: session } = useSession();
 
   useEffect(() => {
-    fetchPosts(true); // Carregamento inicial
+    fetchPosts(true, 1); // Carregamento inicial
   }, []);
 
-  // Polling para atualizar posts periodicamente (a cada 10 segundos)
-  // Apenas quando a página está visível
+  // Infinite scroll
   useEffect(() => {
-    if (!session?.user) return;
+    if (!hasMore || loading || loadingMore) return;
 
-    let interval: NodeJS.Timeout | null = null;
+    const handleScroll = () => {
+      const scrollHeight = document.documentElement.scrollHeight;
+      const scrollTop = document.documentElement.scrollTop;
+      const clientHeight = document.documentElement.clientHeight;
 
-    const startPolling = () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-      interval = setInterval(() => {
-        fetchPosts(false); // Polling, não é carregamento inicial
-      }, 10000); // 10 segundos
-    };
-
-    const stopPolling = () => {
-      if (interval) {
-        clearInterval(interval);
-        interval = null;
+      // Carregar mais quando estiver a 200px do fim
+      if (scrollTop + clientHeight >= scrollHeight - 200) {
+        loadMore();
       }
     };
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        // Quando a página fica visível, começar polling
-        startPolling();
-      } else {
-        // Quando a página fica oculta, parar polling
-        stopPolling();
-      }
-    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [hasMore, loading, loadingMore, page]);
 
-    // Iniciar polling se a página estiver visível
-    if (document.visibilityState === "visible") {
-      startPolling();
-    }
-
-    // Escutar mudanças de visibilidade
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      stopPolling();
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [session]);
-
-  const fetchPosts = async (isInitialLoad = false) => {
+  const fetchPosts = async (isInitialLoad = false, pageNum = 1) => {
     try {
-      const response = await fetch("/api/posts");
+      // Usar feed recomendado se usuário estiver logado, senão usar feed padrão
+      const endpoint = session?.user
+        ? `/api/feed/recommended?page=${pageNum}&limit=10`
+        : `/api/posts?page=${pageNum}&limit=10`;
+
+      const response = await fetch(endpoint);
       const data = await response.json();
 
       if (response.ok) {
-        setPosts(data.posts);
+        if (session?.user && data.items) {
+          // Feed recomendado retorna items
+          if (isInitialLoad) {
+            setPosts(data.items);
+          } else {
+            setPosts((prev) => [...prev, ...data.items]);
+          }
+          setHasMore(data.pagination?.hasMore ?? false);
+        } else if (data.posts) {
+          // Feed padrão retorna posts
+          if (isInitialLoad) {
+            setPosts(data.posts);
+          } else {
+            setPosts((prev) => [...prev, ...data.posts]);
+          }
+          setHasMore(
+            data.pagination
+              ? data.pagination.page < data.pagination.pages
+              : data.posts.length === 10
+          );
+        }
       } else {
         // Só mostrar erro no carregamento inicial
         if (isInitialLoad) {
-          toast.error("Erro ao carregar posts");
+          toast.error("Erro ao carregar feed");
         }
       }
     } catch (error) {
-      console.error("Error fetching posts:", error);
+      console.error("Error fetching feed:", error);
       // Só mostrar toast de erro no carregamento inicial
       if (isInitialLoad) {
-        toast.error("Erro ao carregar posts");
+        toast.error("Erro ao carregar feed");
       }
     } finally {
       if (isInitialLoad) {
         setLoading(false);
+      } else {
+        setLoadingMore(false);
       }
     }
+  };
+
+  const loadMore = () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchPosts(false, nextPage);
   };
 
   // Buscar dados atualizados de um post específico
@@ -280,7 +291,13 @@ export default function MainFeed() {
       </div>
 
       {/* Posts e Vagas */}
-      {!loading && (
+      {loading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <PostCardSkeleton key={i} />
+          ))}
+        </div>
+      ) : (
         <div className="space-y-4">
           {posts.map((item) => {
             // Se for uma vaga, renderizar JobCard
@@ -339,6 +356,13 @@ export default function MainFeed() {
               />
             );
           })}
+          {loadingMore && (
+            <div className="space-y-4">
+              {[1, 2].map((i) => (
+                <PostCardSkeleton key={i} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

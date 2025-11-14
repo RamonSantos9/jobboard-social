@@ -4,6 +4,7 @@ import connectDB from "@/lib/db";
 import mongoose from "mongoose";
 import User from "@/models/User";
 import Company from "@/models/Company";
+import bcrypt from "bcryptjs";
 
 export async function GET(
   request: NextRequest,
@@ -23,7 +24,7 @@ export async function GET(
 
     const { id } = await params;
     const company = await Company.findById(id)
-      .select("name cnpj industry description size location website foundedYear isVerified benefits culture socialLinks admins recruiters _id createdAt")
+      .select("name cnpj industry description size location website foundedYear isVerified benefits culture sidebarTitle username socialLinks admins recruiters _id createdAt")
       .populate("admins", "name email")
       .populate("recruiters", "name email")
       .lean();
@@ -133,6 +134,43 @@ export async function PUT(
     if (body.isVerified !== undefined) updateData.isVerified = body.isVerified;
     if (body.benefits !== undefined) updateData.benefits = Array.isArray(body.benefits) ? body.benefits : [];
     if (body.culture !== undefined) updateData.culture = body.culture || null;
+    // sidebarTitle só pode ser editado por admin da empresa
+    if (body.sidebarTitle !== undefined && (isSystemAdmin || isCompanyAdmin)) {
+      updateData.sidebarTitle = body.sidebarTitle?.trim() || null;
+    }
+
+    // Atualizar username se fornecido
+    if (body.username !== undefined) {
+      const normalizedUsername = body.username?.trim().toLowerCase() || null;
+      
+      // Validar formato do username
+      if (normalizedUsername && !/^[a-z0-9_-]+$/.test(normalizedUsername)) {
+        return NextResponse.json(
+          { error: "Username deve conter apenas letras minúsculas, números, underscores e hífens, sem espaços" },
+          { status: 400 }
+        );
+      }
+
+      // Verificar se o username já está em uso por outra empresa
+      if (normalizedUsername && normalizedUsername !== company.username) {
+        const existingCompany = await Company.findOne({ username: normalizedUsername });
+        if (existingCompany && existingCompany._id.toString() !== companyId) {
+          return NextResponse.json(
+            { error: "Username já está em uso por outra empresa" },
+            { status: 400 }
+          );
+        }
+      }
+
+      updateData.username = normalizedUsername;
+    }
+
+    // Atualizar senha se fornecida
+    if (body.password !== undefined && body.password && body.password.trim()) {
+      // Hash da senha manualmente (o pre-save hook fará o hash, mas vamos garantir)
+      const hashedPassword = await bcrypt.hash(body.password.trim(), 12);
+      updateData.password = hashedPassword;
+    }
 
     // Atualizar socialLinks (mesclar com existente)
     if (body.socialLinks !== undefined) {
@@ -211,6 +249,7 @@ export async function PUT(
     }
 
     try {
+      // Atualizar empresa (senha já foi hasheada manualmente acima)
       const updatedCompany = await Company.findByIdAndUpdate(
         companyId,
         { $set: updateData },

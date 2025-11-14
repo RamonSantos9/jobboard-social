@@ -14,24 +14,110 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
+        username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
+        accountType: { label: "Account Type", type: "text" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        const email = credentials?.email as string;
+        const username = credentials?.username as string;
+        const password = credentials?.password as string;
+        const accountType = (credentials?.accountType as string) || "user";
+
+        if (!password) {
           throw new Error("EMAIL_PASSWORD_REQUIRED");
+        }
+
+        // Para login de empresa, aceitar username ou email
+        if (accountType === "company") {
+          if (!username && !email) {
+            throw new Error("USERNAME_PASSWORD_REQUIRED");
+          }
+        } else {
+          // Para login de usuário, email é obrigatório
+          if (!email) {
+            throw new Error("EMAIL_PASSWORD_REQUIRED");
+          }
         }
 
         try {
           await connectDB();
 
-          // Normalizar email
-          const email = (credentials.email as string).toLowerCase().trim();
-          const password = credentials.password as string;
+          // Se for login de empresa e tiver username, buscar por username
+          if (accountType === "company" && username) {
+            const normalizedUsername = username.toLowerCase().trim();
+            const company = await CompanyModel.findOne({ username: normalizedUsername });
+
+            if (company) {
+              // Verificar se a conta está ativa
+              if (!company.isActive) {
+                throw new Error("ACCOUNT_INACTIVE");
+              }
+
+              // Verificar senha
+              const isPasswordValid = await company.comparePassword(password);
+
+              if (!isPasswordValid) {
+                throw new Error("INVALID_PASSWORD");
+              }
+
+              // Login bem-sucedido
+              return {
+                id: company._id.toString(),
+                name: company.name,
+                email: company.email,
+                role: "company",
+                isRecruiter: false,
+                companyId: company._id.toString(),
+                status: "active",
+                onboardingCompleted: true,
+                accountType: "company",
+              };
+            }
+
+            // Se não encontrou por username, tentar por email se fornecido
+            if (email) {
+              const normalizedEmail = email.toLowerCase().trim();
+              const companyByEmail = await CompanyModel.findOne({ email: normalizedEmail });
+
+              if (companyByEmail) {
+                // Verificar se a conta está ativa
+                if (!companyByEmail.isActive) {
+                  throw new Error("ACCOUNT_INACTIVE");
+                }
+
+                // Verificar senha
+                const isPasswordValid = await companyByEmail.comparePassword(password);
+
+                if (!isPasswordValid) {
+                  throw new Error("INVALID_PASSWORD");
+                }
+
+                // Login bem-sucedido
+                return {
+                  id: companyByEmail._id.toString(),
+                  name: companyByEmail.name,
+                  email: companyByEmail.email,
+                  role: "company",
+                  isRecruiter: false,
+                  companyId: companyByEmail._id.toString(),
+                  status: "active",
+                  onboardingCompleted: true,
+                  accountType: "company",
+                };
+              }
+            }
+
+            throw new Error("USERNAME_NOT_FOUND");
+          }
+
+          // Login de usuário ou empresa por email (compatibilidade)
+          const normalizedEmail = (email as string).toLowerCase().trim();
 
           // Buscar usuário e empresa em paralelo para melhor performance
           const [user, company] = await Promise.all([
-            UserModel.findOne({ email }),
-            CompanyModel.findOne({ email }),
+            UserModel.findOne({ email: normalizedEmail }),
+            CompanyModel.findOne({ email: normalizedEmail }),
           ]);
 
           // Se encontrou usuário
@@ -67,6 +153,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               companyId: user.companyId?.toString(),
               status: user.status,
               onboardingCompleted: user.onboardingCompleted,
+              dashboardAccess: user.dashboardAccess || false,
               accountType: "user",
             };
           }
@@ -203,6 +290,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.companyId = (user as any).companyId;
         token.status = (user as any).status;
         token.onboardingCompleted = (user as any).onboardingCompleted;
+        token.dashboardAccess = (user as any).dashboardAccess || false;
         token.accountType = (user as any).accountType || "user";
       }
       return token;
@@ -217,6 +305,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.companyId = token.companyId as string;
         session.user.status = token.status as string;
         session.user.onboardingCompleted = token.onboardingCompleted as boolean;
+        (session.user as any).dashboardAccess = token.dashboardAccess as boolean || false;
         (session.user as any).accountType =
           (token.accountType as string) || "user";
       }

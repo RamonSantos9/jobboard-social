@@ -8,7 +8,9 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  CardContent,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface SectionCardsProps {
   overview?: {
@@ -56,11 +58,13 @@ export function SectionCards({
         {[1, 2, 3, 4].map((i) => (
           <Card key={i} className="@container/card">
             <CardHeader>
-              <CardDescription>Carregando...</CardDescription>
-              <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                -
-              </CardTitle>
+              <Skeleton className="h-4 w-32 mb-2" />
+              <Skeleton className="h-8 w-20" />
             </CardHeader>
+            <CardContent>
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-3/4 mt-2" />
+            </CardContent>
           </Card>
         ))}
       </div>

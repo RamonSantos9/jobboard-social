@@ -15,20 +15,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, password } = body;
+    const { email, username, password, accountType } = body;
 
     // Validar dados obrigatórios
-    if (!email || !password) {
+    if (!password) {
       return NextResponse.json(
-        { error: "EMAIL_PASSWORD_REQUIRED", message: "Por favor, preencha email e senha." },
+        { error: "EMAIL_PASSWORD_REQUIRED", message: "Por favor, preencha email/username e senha." },
         { status: 400 }
       );
     }
 
+    // Para login de empresa, aceitar username ou email
+    if (accountType === "company") {
+      if (!username && !email) {
+        return NextResponse.json(
+          { error: "USERNAME_PASSWORD_REQUIRED", message: "Por favor, preencha username e senha." },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Para login de usuário, email é obrigatório
+      if (!email) {
+        return NextResponse.json(
+          { error: "EMAIL_PASSWORD_REQUIRED", message: "Por favor, preencha email e senha." },
+          { status: 400 }
+        );
+      }
+    }
+
     // Validar tipos
-    if (typeof email !== "string" || typeof password !== "string") {
+    if (typeof password !== "string") {
       return NextResponse.json(
-        { error: "INVALID_REQUEST", message: "Email e senha devem ser strings." },
+        { error: "INVALID_REQUEST", message: "Senha deve ser uma string." },
         { status: 400 }
       );
     }
@@ -43,6 +61,121 @@ export async function POST(request: NextRequest) {
           message: "Erro interno do servidor. Entre em contato com o suporte.",
         },
         { status: 500 }
+      );
+    }
+
+    // Se for login de empresa e tiver username, buscar por username
+    if (accountType === "company" && username) {
+      const normalizedUsername = username.toLowerCase().trim();
+      
+      try {
+        const company = await CompanyModel.findOne({ username: normalizedUsername });
+        
+        if (company) {
+          // Verificar se a conta está ativa
+          if (!company.isActive) {
+            return NextResponse.json(
+              {
+                error: "ACCOUNT_INACTIVE",
+                message: "Sua conta está inativa. Entre em contato com o suporte para mais informações.",
+              },
+              { status: 403 }
+            );
+          }
+
+          // Verificar senha
+          const isPasswordValid = await company.comparePassword(password);
+          if (!isPasswordValid) {
+            return NextResponse.json(
+              {
+                error: "INVALID_PASSWORD",
+                message: "Senha incorreta. Tente novamente ou entre em contato com o suporte.",
+              },
+              { status: 401 }
+            );
+          }
+
+          return NextResponse.json(
+            {
+              success: true,
+              message: "Login válido. Redirecionando...",
+              accountType: "company",
+            },
+            { status: 200 }
+          );
+        }
+
+        // Se não encontrou por username, tentar por email se fornecido
+        if (email) {
+          const normalizedEmail = email.toLowerCase().trim();
+          const companyByEmail = await CompanyModel.findOne({ email: normalizedEmail });
+          
+          if (companyByEmail) {
+            // Verificar se a conta está ativa
+            if (!companyByEmail.isActive) {
+              return NextResponse.json(
+                {
+                  error: "ACCOUNT_INACTIVE",
+                  message: "Sua conta está inativa. Entre em contato com o suporte para mais informações.",
+                },
+                { status: 403 }
+              );
+            }
+
+            // Verificar senha
+            const isPasswordValid = await companyByEmail.comparePassword(password);
+            if (!isPasswordValid) {
+              return NextResponse.json(
+                {
+                  error: "INVALID_PASSWORD",
+                  message: "Senha incorreta. Tente novamente ou entre em contato com o suporte.",
+                },
+                { status: 401 }
+              );
+            }
+
+            return NextResponse.json(
+              {
+                success: true,
+                message: "Login válido. Redirecionando...",
+                accountType: "company",
+              },
+              { status: 200 }
+            );
+          }
+        }
+
+        return NextResponse.json(
+          {
+            error: "USERNAME_NOT_FOUND",
+            message: "Username não encontrado. Verifique se o username está correto.",
+          },
+          { status: 404 }
+        );
+      } catch (findError: any) {
+        const isConnectionError = 
+          findError?.message?.includes("connection") ||
+          findError?.message?.includes("timeout") ||
+          findError?.message?.includes("Mongo") ||
+          findError?.name?.includes("Mongo");
+        
+        return NextResponse.json(
+          {
+            error: isConnectionError ? "DATABASE_CONNECTION_ERROR" : "DATABASE_QUERY_ERROR",
+            message: isConnectionError 
+              ? "Erro de conexão com o banco de dados. Tente novamente mais tarde."
+              : "Erro ao buscar dados. Tente novamente mais tarde.",
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Login de usuário ou empresa por email (compatibilidade)
+    if (!email) {
+      return NextResponse.json(
+        { error: "EMAIL_PASSWORD_REQUIRED", message: "Por favor, preencha email e senha." },
+        { status: 400 }
       );
     }
 

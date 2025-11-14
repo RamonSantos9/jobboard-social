@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   ChevronDown,
+  ChevronUp,
   TrendingUp,
   Users,
   MessageSquare,
@@ -39,6 +40,7 @@ interface TechNews {
 export default function RightSidebar() {
   const [techNews, setTechNews] = useState<TechNews[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     const fetchTechNews = async () => {
@@ -83,10 +85,8 @@ export default function RightSidebar() {
     <div className="w-full">
       {/* Jobboard News */}
       <Card>
-        <CardHeader className="px-4 py-2">
-          <CardTitle className="text-xl font-bold font-sora ">
-            Jobboard Notícias
-          </CardTitle>
+        <CardHeader className="px-4">
+          <CardTitle className="text-xl font-bold">Jobboard Notícias</CardTitle>
           <p className="text-base text-black/60">Assuntos em alta</p>
         </CardHeader>
         <CardContent className="p-0">
@@ -104,7 +104,7 @@ export default function RightSidebar() {
             </div>
           ) : (
             <div className="space-y-1">
-              {techNews.slice(0, 5).map((news, index) => {
+              {techNews.slice(0, isExpanded ? 10 : 5).map((news, index) => {
                 const IconComponent = getIconForIndex(index);
                 return (
                   <div key={news.id} className="hover:bg-black/10 py-2">
@@ -128,12 +128,23 @@ export default function RightSidebar() {
             </div>
           )}
 
-          <Button
-            variant="ghost"
-            className="w-full text-sm items-start flex justify-start"
-          >
-            Exibir mais <ChevronDown className="w-4 h-4" />
-          </Button>
+          {techNews.length > 5 && (
+            <Button
+              variant="ghost"
+              className="w-full text-sm items-start flex justify-start"
+              onClick={() => setIsExpanded(!isExpanded)}
+            >
+              {isExpanded ? (
+                <>
+                  Exibir menos <ChevronUp className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  Exibir mais <ChevronDown className="w-4 h-4" />
+                </>
+              )}
+            </Button>
+          )}
         </CardContent>
       </Card>
 

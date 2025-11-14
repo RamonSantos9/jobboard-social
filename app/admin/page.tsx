@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sidebar";
 import { SectionCards } from "@/components/dashboard/sectionsCards";
 import { DataTable } from "@/components/dashboard/data-table";
+import { AdminDashboardSkeleton } from "@/components/dashboard/admin-skeleton";
 
 import { ChartPieLabelCustom } from "@/components/dashboard/graphics/chart-pie-label-custom";
 import { ChartLineLabel } from "@/components/dashboard/graphics/chart-line-label";
@@ -24,6 +25,7 @@ function AdminContent() {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
   const router = useRouter();
+  const { data: session } = useSession();
   const [stats, setStats] = useState<any>(null);
   const [activities, setActivities] = useState<any[]>([]);
   const [activitiesLast24h, setActivitiesLast24h] = useState<any[]>([]);
@@ -33,6 +35,12 @@ function AdminContent() {
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Verificar se o usuário é admin antes de renderizar
+  const userRole = (session?.user as any)?.role || session?.user?.role;
+  if (!session || !userRole || userRole !== "admin") {
+    return null; // Não renderizar nada se não for admin
+  }
 
   const handleCompanyUpdate = (company: any) => {
     setCompanies((prev) => {
@@ -101,9 +109,10 @@ function AdminContent() {
             router.push("/feed");
             return;
           } else {
-            setError(
-              `Erro ao buscar dados: ${errorData.error || "Erro desconhecido"}`
-            );
+            // Para outros erros, não setar erro, apenas redirecionar
+            console.error("Erro ao buscar dados:", errorData);
+            router.push("/feed");
+            return;
           }
         } else {
           const data = await response.json();
@@ -134,22 +143,16 @@ function AdminContent() {
 
   if (loading) {
     return (
-      <>
-        <AppSidebar variant="inset" />
-        <SidebarInset>
-          <SiteHeader title="Painel Administrativo" />
-          <ScrollWrapper className="flex-1" variant="dashboard">
-            <div className="flex flex-1 items-center justify-center">
-              <div className="text-center">
-                <p className="text-lg font-medium">Carregando dados...</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Aguarde enquanto buscamos as informações
-                </p>
-              </div>
-            </div>
-          </ScrollWrapper>
-        </SidebarInset>
-      </>
+      <SidebarProvider
+        style={
+          {
+            "--sidebar-width": "calc(var(--spacing) * 72)",
+            "--header-height": "calc(var(--spacing) * 12)",
+          } as React.CSSProperties
+        }
+      >
+        <AdminDashboardSkeleton />
+      </SidebarProvider>
     );
   }
 
@@ -223,6 +226,14 @@ export default function AdminPage() {
     if (status === "loading") return;
     if (!session) {
       router.push("/feed/auth/login");
+      return;
+    }
+    
+    // Verificar se o usuário é admin do sistema
+    const userRole = (session.user as any)?.role || session.user?.role;
+    if (!userRole || userRole !== "admin") {
+      router.push("/feed");
+      return;
     }
   }, [session, status, router]);
 
@@ -232,6 +243,12 @@ export default function AdminPage() {
 
   if (!session) {
     return null;
+  }
+
+  // Verificar role antes de renderizar
+  const userRole = (session.user as any)?.role || session.user?.role;
+  if (!userRole || userRole !== "admin") {
+    return null; // Não renderizar nada enquanto redireciona
   }
 
   return (

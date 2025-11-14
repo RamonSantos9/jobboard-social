@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const usersWithProfiles = await Promise.all(
       users.map(async (user) => {
         const profile = await Profile.findOne({ userId: user._id })
-          .select("firstName lastName photoUrl")
+          .select("firstName lastName photoUrl headline")
           .lean();
 
         return {

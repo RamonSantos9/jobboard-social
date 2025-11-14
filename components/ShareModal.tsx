@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSession } from "next-auth/react";
 import {
   Dialog,
   DialogContent,
@@ -40,14 +41,31 @@ interface ShareModalProps {
 
 export default function ShareModal({ isOpen, onClose, post }: ShareModalProps) {
   const router = useRouter();
+  const { data: session } = useSession();
   const [isSharing, setIsSharing] = useState(false);
 
+  const trackShare = () => {
+    if (session?.user) {
+      fetch("/api/interactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemType: "post",
+          itemId: post._id,
+          interactionType: "share",
+        }),
+      }).catch(() => {});
+    }
+  };
+
   const handleShareAsNewPost = () => {
+    trackShare();
     router.push(`/feed?share=${post._id}`);
     onClose();
   };
 
   const handleSendMessage = () => {
+    trackShare();
     toast.info("Funcionalidade de mensagem em desenvolvimento");
     onClose();
   };
@@ -55,6 +73,7 @@ export default function ShareModal({ isOpen, onClose, post }: ShareModalProps) {
   const handleCopyLink = async () => {
     try {
       if (typeof window === "undefined") return;
+      trackShare();
       const link = getUrl(`/posts/${post._id}`);
       await navigator.clipboard.writeText(link);
       toast.success("Link copiado para a área de transferência!");
@@ -67,6 +86,7 @@ export default function ShareModal({ isOpen, onClose, post }: ShareModalProps) {
   const handleExternalShare = async () => {
     try {
       if (typeof window === "undefined") return;
+      trackShare();
       const link = getUrl(`/posts/${post._id}`);
       const text = post.content
         ? `${post.content.substring(0, 100)}...`

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   IconDashboard,
@@ -80,11 +80,20 @@ const getNavData = (
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const params = useParams();
   const [userProfile, setUserProfile] = React.useState<{
     name?: string;
     email?: string;
     photoUrl?: string;
   } | null>(null);
+  const [companyData, setCompanyData] = React.useState<{
+    name?: string;
+    logoUrl?: string;
+    sidebarTitle?: string;
+  } | null>(null);
+
+  const isCompanyDashboard = pathname?.startsWith("/company/") && pathname?.includes("/admin");
+  const companyId = isCompanyDashboard ? params?.id as string : null;
 
   React.useEffect(() => {
     const fetchProfile = async () => {
@@ -110,6 +119,28 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     fetchProfile();
   }, [session]);
 
+  React.useEffect(() => {
+    const fetchCompanyData = async () => {
+      if (!companyId) return;
+      try {
+        const response = await fetch(`/api/company/${companyId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.company) {
+            setCompanyData({
+              name: data.company.name,
+              logoUrl: data.company.logoUrl,
+              sidebarTitle: data.company.sidebarTitle,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching company data:", error);
+      }
+    };
+    fetchCompanyData();
+  }, [companyId]);
+
   const userData = userProfile || {
     name: session?.user?.name,
     email: session?.user?.email,
@@ -117,6 +148,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
   const data = getNavData(userData, pathname);
+
+  // Determinar título do sidebar
+  const sidebarTitle = companyData?.sidebarTitle || companyData?.name || "JobBoard Social";
+  const displayTitle = sidebarTitle.length > 20 
+    ? `${sidebarTitle.substring(0, 20)}...` 
+    : sidebarTitle;
 
   return (
     <Sidebar collapsible="icon" {...props} className="border-r border-border">
@@ -127,9 +164,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="/">
-                <LogoIcon className="!size-5" />
-                <span className="text-base font-semibold">JobBoard Social</span>
+              <a href={isCompanyDashboard ? `/company/${companyId}` : "/"}>
+                {companyData?.logoUrl ? (
+                  <img 
+                    src={companyData.logoUrl} 
+                    alt={companyData.name || "Company"} 
+                    className="!size-5 rounded object-cover"
+                  />
+                ) : (
+                  <LogoIcon className="!size-5" />
+                )}
+                <span className="text-base font-semibold truncate">{displayTitle}</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

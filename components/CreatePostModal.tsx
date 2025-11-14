@@ -15,7 +15,7 @@ import {
 import { X, Pencil } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import LinkedInIcon from "@/components/LinkedInIcon";
 import ImageEditorModal from "@/components/ImageEditorModal";
 
@@ -45,10 +45,58 @@ export default function CreatePostModal({
   const actionTriggeredRef = useRef(false);
   const [showEditor, setShowEditor] = useState(false);
   const [step, setStep] = useState<"upload" | "editor" | "text">("text");
+  const [userProfile, setUserProfile] = useState<{
+    photoUrl?: string;
+    firstName?: string;
+    lastName?: string;
+  } | null>(null);
 
   // Usar estado externo se fornecido, caso contrário usar interno
   const modalOpen = open !== undefined ? open : isOpen;
   const setModalOpen = onOpenChange || setIsOpen;
+
+  // Função para buscar perfil
+  const fetchProfile = useCallback(async () => {
+    if (!session) return;
+    try {
+      const response = await fetch("/api/profile");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.profile) {
+          setUserProfile({
+            photoUrl: data.profile.photoUrl,
+            firstName: data.profile.firstName,
+            lastName: data.profile.lastName,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    }
+  }, [session]);
+
+  // Buscar perfil do usuário
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  // Listener para atualizar foto quando o usuário mudar a foto de perfil
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      fetchProfile();
+    };
+
+    // Escutar evento customizado de atualização de perfil
+    window.addEventListener("profilePhotoUpdated", handleProfileUpdate);
+
+    // Também escutar quando a janela recebe foco (caso o usuário tenha mudado a foto em outra aba)
+    window.addEventListener("focus", handleProfileUpdate);
+
+    return () => {
+      window.removeEventListener("profilePhotoUpdated", handleProfileUpdate);
+      window.removeEventListener("focus", handleProfileUpdate);
+    };
+  }, [fetchProfile]);
 
   // Resetar estado quando o modal fechar
   useEffect(() => {
@@ -444,12 +492,24 @@ export default function CreatePostModal({
           {/* User Info */}
           <div className="flex items-center space-x-3">
             <Avatar className="w-10 h-10">
-              <AvatarImage src="/placeholder/userplaceholder.svg" />
-              <AvatarFallback>{session?.user?.name?.[0] || "U"}</AvatarFallback>
+              <AvatarImage
+                src={
+                  userProfile?.photoUrl || "/placeholder/userplaceholder.svg"
+                }
+              />
+              <AvatarFallback>
+                {userProfile?.firstName?.[0] || ""}
+                {userProfile?.lastName?.[0] || ""}
+                {!userProfile?.firstName && !userProfile?.lastName
+                  ? session?.user?.name?.[0] || "U"
+                  : ""}
+              </AvatarFallback>
             </Avatar>
             <div>
               <p className="font-medium text-sm">
-                {session?.user?.name || "Usuário"}
+                {userProfile?.firstName && userProfile?.lastName
+                  ? `${userProfile.firstName} ${userProfile.lastName}`
+                  : session?.user?.name || "Usuário"}
               </p>
               <p className="text-xs text-black/60">Público</p>
             </div>

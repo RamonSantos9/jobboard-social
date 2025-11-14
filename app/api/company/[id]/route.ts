@@ -53,6 +53,7 @@ export async function GET(
         location: company.location,
         logoUrl: company.logoUrl,
         bannerUrl: company.bannerUrl,
+        sidebarTitle: company.sidebarTitle,
         followersCount: company.followersCount,
         jobsCount: company.jobsCount,
         isVerified: company.isVerified,

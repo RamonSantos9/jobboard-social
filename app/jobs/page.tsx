@@ -9,6 +9,7 @@ import Header from "@/components/Header";
 import LeftSidebarJobs from "./components/LeftSidebarJobs";
 import CreateJobModal from "@/components/CreateJobModal";
 import JobCard from "@/components/JobCard";
+import JobCardSkeleton from "@/components/JobCardSkeleton";
 import { Badge } from "@/components/ui/badge";
 import { Compass, Plus, Sparkles, Wand2 } from "lucide-react";
 
@@ -48,6 +49,9 @@ export default function JobsPage() {
   const { data: session } = useSession();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [createJobModalOpen, setCreateJobModalOpen] = useState(false);
   const [filters, setFilters] = useState({
     search: "",
@@ -57,42 +61,117 @@ export default function JobsPage() {
   });
 
   useEffect(() => {
-    fetchJobs();
+    fetchJobs(true, 1);
   }, [session]);
 
-  const fetchJobs = async () => {
-    try {
-      setLoading(true);
-      // Se usuário está logado, buscar vagas recomendadas
-      const url = session ? "/api/jobs/recommended" : "/api/jobs";
-      const response = await fetch(url);
+  // Infinite scroll
+  useEffect(() => {
+    if (!hasMore || loading || loadingMore) return;
 
+    const handleScroll = () => {
+      const scrollHeight = document.documentElement.scrollHeight;
+      const scrollTop = document.documentElement.scrollTop;
+      const clientHeight = document.documentElement.clientHeight;
+
+      // Carregar mais quando estiver a 200px do fim
+      if (scrollTop + clientHeight >= scrollHeight - 200) {
+        loadMore();
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [hasMore, loading, loadingMore, page]);
+
+  const fetchJobs = async (isInitialLoad = false, pageNum = 1) => {
+    try {
+      if (isInitialLoad) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      // Usar feed recomendado se usuário estiver logado, senão usar feed padrão
+      const endpoint = session?.user
+        ? `/api/feed/recommended?page=${pageNum}&limit=10`
+        : `/api/jobs?page=${pageNum}&limit=10`;
+
+      const response = await fetch(endpoint);
       const data = await response.json();
 
       if (response.ok) {
-        console.log(`Vagas recebidas: ${data.jobs?.length || 0}`);
-        if (data.jobs && Array.isArray(data.jobs)) {
-          setJobs(data.jobs);
-        } else {
-          console.error("Formato de dados inválido:", data);
-          setJobs([]);
+        if (session?.user && data.items) {
+          // Feed recomendado retorna items (filtrar apenas jobs e mapear)
+          const jobItems = data.items
+            .filter((item: any) => item.type === "job")
+            .map((item: any) => ({
+              _id: item._id,
+              title: item.title,
+              description: item.description,
+              location: item.location,
+              remote: item.remote,
+              type: item.jobType || item.type,
+              level: item.level,
+              category: item.category,
+              salaryRange: item.salaryRange,
+              companyId: item.companyId,
+              skills: item.skills || [],
+              benefits: item.benefits || [],
+              matchScore: item.matchScore,
+              createdAt: item.createdAt,
+            }));
+          if (isInitialLoad) {
+            setJobs(jobItems);
+          } else {
+            setJobs((prev) => [...prev, ...jobItems]);
+          }
+          setHasMore(data.pagination?.hasMore ?? false);
+        } else if (data.jobs) {
+          // Feed padrão retorna jobs
+          if (isInitialLoad) {
+            setJobs(data.jobs);
+          } else {
+            setJobs((prev) => [...prev, ...data.jobs]);
+          }
+          setHasMore(
+            data.pagination
+              ? data.pagination.page < data.pagination.pages
+              : data.jobs.length === 10
+          );
         }
       } else {
-        console.error("Erro na resposta:", data);
-        toast.error(data.error || "Erro ao carregar vagas");
+        if (isInitialLoad) {
+          toast.error(data.error || "Erro ao carregar vagas");
+        }
         setJobs([]);
       }
     } catch (error) {
       console.error("Erro ao buscar vagas:", error);
-      toast.error("Erro ao carregar vagas");
+      if (isInitialLoad) {
+        toast.error("Erro ao carregar vagas");
+      }
       setJobs([]);
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      } else {
+        setLoadingMore(false);
+      }
     }
   };
 
+  const loadMore = () => {
+    if (loadingMore || !hasMore) return;
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchJobs(false, nextPage);
+  };
+
   const handleJobCreated = () => {
-    fetchJobs(); // Recarregar vagas após criar
+    // Resetar e recarregar vagas após criar
+    setPage(1);
+    setJobs([]);
+    fetchJobs(true, 1);
   };
 
   const filteredJobs = useMemo(
@@ -125,14 +204,11 @@ export default function JobsPage() {
           <main className="flex-1 space-y-4 lg:ml-0">
             <div className="space-y-4">
               {loading ? (
-                <Card className="border border-gray-200 bg-white rounded-lg shadow-sm">
-                  <CardContent className="py-12 text-center text-gray-500">
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                      <span>Carregando vagas...</span>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <JobCardSkeleton key={i} />
+                  ))}
+                </div>
               ) : filteredJobs.length === 0 ? (
                 <Card className="border border-gray-200 bg-white rounded-lg shadow-sm">
                   <CardContent className="py-12 text-center text-gray-500">
@@ -145,16 +221,25 @@ export default function JobsPage() {
                   </CardContent>
                 </Card>
               ) : (
-                filteredJobs.map((job) => (
-                  <JobCard
-                    key={job._id}
-                    job={job}
-                    variant="list"
-                    onApplySuccess={() =>
-                      toast.success("Candidatura enviada com sucesso!")
-                    }
-                  />
-                ))
+                <>
+                  {filteredJobs.map((job) => (
+                    <JobCard
+                      key={job._id}
+                      job={job}
+                      variant="list"
+                      onApplySuccess={() =>
+                        toast.success("Candidatura enviada com sucesso!")
+                      }
+                    />
+                  ))}
+                  {loadingMore && (
+                    <div className="space-y-4">
+                      {[1, 2].map((i) => (
+                        <JobCardSkeleton key={`loading-${i}`} />
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </main>

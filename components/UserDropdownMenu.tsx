@@ -185,15 +185,16 @@ export default function UserDropdownMenu({ profile }: UserDropdownMenuProps) {
 
         <DropdownMenuSeparator />
 
-        {/* Admin Options (se for admin) */}
-        <div className="py-2">
-          <div className="px-4 py-2">
-            <h4 className="text-xs font-semibold text-black uppercase tracking-wide">
-              Admin
-            </h4>
-          </div>
-          {session?.user?.role === "admin" && (
-            <>
+        {/* Admin Options */}
+        {(session?.user?.role === "admin" || (session?.user as any)?.dashboardAccess) && (
+          <div className="py-2">
+            <div className="px-4 py-2">
+              <h4 className="text-xs font-semibold text-black uppercase tracking-wide">
+                Admin
+              </h4>
+            </div>
+            {/* Dashboard - apenas se tiver acesso liberado pelo admin master */}
+            {(session?.user as any)?.dashboardAccess && (
               <DropdownMenuItem
                 className="px-4 cursor-pointer text-black hover:underline"
                 asChild
@@ -204,6 +205,9 @@ export default function UserDropdownMenu({ profile }: UserDropdownMenuProps) {
                   </span>
                 </Link>
               </DropdownMenuItem>
+            )}
+            {/* Admin - apenas se for admin da plataforma */}
+            {session?.user?.role === "admin" && (
               <DropdownMenuItem
                 className="px-4 cursor-pointer text-black hover:underline"
                 asChild
@@ -214,9 +218,9 @@ export default function UserDropdownMenu({ profile }: UserDropdownMenuProps) {
                   </span>
                 </Link>
               </DropdownMenuItem>
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </DropdownMenuContent>
   );

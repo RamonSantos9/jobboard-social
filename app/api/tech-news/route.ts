@@ -1,10 +1,42 @@
 import { NextResponse } from "next/server";
 
-// Função para traduzir texto para português (versão simplificada)
+// Função para traduzir texto para português usando MyMemory Translation API
 async function translateToPortuguese(text: string): Promise<string> {
-  // Por enquanto, retorna o texto original para evitar problemas com API externa
-  // Em produção, você pode implementar uma tradução real
-  return text;
+  if (!text || text.trim() === "") {
+    return text;
+  }
+
+  try {
+    // Usar MyMemory Translation API (gratuita, sem necessidade de chave)
+    const response = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
+        text
+      )}&langpair=en|pt-BR`,
+      {
+        method: "GET",
+        headers: {
+          "User-Agent": "JobBoard/1.0",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Translation API error");
+    }
+
+    const data = await response.json();
+
+    if (data.responseStatus === 200 && data.responseData?.translatedText) {
+      return data.responseData.translatedText;
+    }
+
+    // Se a tradução falhar, retornar texto original
+    return text;
+  } catch (error) {
+    console.error("Error translating text:", error);
+    // Em caso de erro, retornar texto original
+    return text;
+  }
 }
 
 export async function GET() {

@@ -17,9 +17,9 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    // Verificar se o usuário é admin
-    const user = await User.findById(session.user.id).select("role").lean() as { role?: string } | null;
-    if (!user || user.role !== "admin") {
+    // Verificar se o usuário é admin usando o role da sessão
+    const userRole = (session.user as any)?.role || session.user?.role;
+    if (!userRole || userRole !== "admin") {
       return NextResponse.json(
         { error: "Acesso negado. Apenas administradores podem acessar." },
         { status: 403 }
@@ -43,7 +43,8 @@ export async function GET(request: NextRequest) {
 
     const [users, total] = await Promise.all([
       User.find(query)
-        .select("name email role isRecruiter companyId createdAt isActive")
+        .select("name email role isRecruiter companyId createdAt isActive config dashboardAccess")
+        .populate("companyId", "name admins recruiters")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -51,8 +52,43 @@ export async function GET(request: NextRequest) {
       User.countDocuments(query),
     ]);
 
+    // Determinar papel na empresa para cada usuário
+    const usersWithCompanyRole = users.map((user: any) => {
+      const userObj: any = { ...user };
+      if (user.companyId && typeof user.companyId === 'object') {
+        const company = user.companyId as any;
+        userObj.company = {
+          _id: company._id,
+          name: company.name,
+        };
+        
+        // Verificar se está em admins
+        const isAdmin = company.admins?.some((adminId: any) => 
+          adminId.toString() === user._id.toString()
+        );
+        
+        // Verificar se está em recruiters
+        const isRecruiter = company.recruiters?.some((recruiterId: any) => 
+          recruiterId.toString() === user._id.toString()
+        );
+        
+        if (isAdmin) {
+          userObj.companyRole = "admin";
+        } else if (isRecruiter) {
+          userObj.companyRole = "recruiter";
+        } else {
+          userObj.companyRole = null;
+        }
+      } else {
+        userObj.company = null;
+        userObj.companyRole = null;
+      }
+      
+      return userObj;
+    });
+
     return NextResponse.json({
-      users,
+      users: usersWithCompanyRole,
       total,
       page,
       limit,
@@ -80,9 +116,9 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
-    // Verificar se o usuário é admin
-    const user = await User.findById(session.user.id).select("role").lean() as { role?: string } | null;
-    if (!user || user.role !== "admin") {
+    // Verificar se o usuário é admin usando o role da sessão
+    const userRole = (session.user as any)?.role || session.user?.role;
+    if (!userRole || userRole !== "admin") {
       return NextResponse.json(
         { error: "Acesso negado. Apenas administradores podem criar usuários." },
         { status: 403 }

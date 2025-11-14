@@ -226,6 +226,20 @@ export default function CommentSection({
           setComment("");
           onAddComment?.(commentContent);
           toast.success("Comentário adicionado com sucesso!");
+          
+          // Registrar interação de comentário
+          if (session?.user) {
+            fetch("/api/interactions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                itemType: "post",
+                itemId: postId,
+                interactionType: "comment",
+              }),
+            }).catch(() => {});
+          }
+          
           await fetchComments();
           setTimeout(() => {
             commentsEndRef.current?.scrollIntoView({

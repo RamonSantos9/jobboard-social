@@ -35,6 +35,7 @@ export default function Header({ sticky = true }: HeaderProps) {
   const pathname = usePathname();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [unreadNotifications, setUnreadNotifications] = useState(4);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Buscar dados do perfil quando o componente montar
   useEffect(() => {
@@ -64,7 +65,7 @@ export default function Header({ sticky = true }: HeaderProps) {
   const navItems = [
     {
       href: "/feed",
-      iconId: pathname === "/feed" ? "home-active" : "newspaper-small",
+      iconId: "home-active",
       label: "Início",
     },
     {
@@ -156,7 +157,7 @@ export default function Header({ sticky = true }: HeaderProps) {
 
             {/* Eu - Avatar */}
             <li className="relative ml-6">
-              <DropdownMenu>
+              <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
@@ -182,9 +183,17 @@ export default function Header({ sticky = true }: HeaderProps) {
                         </AvatarFallback>
                       </Avatar>
                     </div>
-                    <span className="text-xs leading-tight whitespace-nowrap text-center">
+                    <span className="text-xs leading-tight whitespace-nowrap text-center flex items-center justify-between">
                       Eu
+                      <div className="ml-0.5">
+                        {dropdownOpen ? (
+                          <LinkedInIcon id="chevron-up-medium" size={12} />
+                        ) : (
+                          <LinkedInIcon id="chevron-down-medium" size={12} />
+                        )}
+                      </div>
                     </span>
+
                     {/* Indicador ativo - linha preta na parte de baixo */}
                     {(pathname?.startsWith("/jobboard") ||
                       pathname?.startsWith("/settings")) && (

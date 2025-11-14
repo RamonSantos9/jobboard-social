@@ -9,6 +9,7 @@ export interface ICompany extends Document {
   cnpj: string;
   email: string;
   password: string;
+  username?: string;
   industry: string;
   website?: string;
   logoUrl?: string;
@@ -22,6 +23,7 @@ export interface ICompany extends Document {
   isVerified: boolean;
   benefits: string[];
   culture?: string;
+  sidebarTitle?: string;
   socialLinks: {
     linkedin?: string;
     twitter?: string;
@@ -72,6 +74,20 @@ const CompanySchema = new Schema<ICompany>(
       required: [true, "Senha é obrigatória"],
       minlength: [6, "Senha deve ter pelo menos 6 caracteres"],
     },
+    username: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      lowercase: true,
+      validate: {
+        validator: function(v: string) {
+          if (!v) return true; // Allow empty
+          return /^[a-z0-9_-]+$/.test(v);
+        },
+        message: "Username deve conter apenas letras, números, underscores e hífens, sem espaços",
+      },
+    },
     industry: {
       type: String,
       required: [true, "Indústria é obrigatória"],
@@ -108,6 +124,11 @@ const CompanySchema = new Schema<ICompany>(
     },
     benefits: [String],
     culture: String,
+    sidebarTitle: {
+      type: String,
+      trim: true,
+      maxlength: [50, "Título do sidebar deve ter no máximo 50 caracteres"],
+    },
     socialLinks: {
       linkedin: String,
       twitter: String,
@@ -127,6 +148,12 @@ const CompanySchema = new Schema<ICompany>(
 // Hash password before saving
 CompanySchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
+
+  // Verificar se a senha já está hasheada (começa com $2a$, $2b$ ou $2y$)
+  // Se já estiver hasheada, não fazer hash novamente (evitar double hash)
+  if (this.password && /^\$2[ayb]\$.{56}$/.test(this.password)) {
+    return next();
+  }
 
   try {
     const salt = await bcrypt.genSalt(12);

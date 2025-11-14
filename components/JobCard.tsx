@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -19,6 +18,8 @@ import {
 } from "lucide-react";
 import LinkedInIcon from "./LinkedInIcon";
 import ApplyJobModal from "./ApplyJobModal";
+import { toast } from "sonner";
+import { Bookmark, BookmarkCheck } from "lucide-react";
 
 interface JobCardProps {
   job: {
@@ -95,11 +96,177 @@ export default function JobCard({
   const router = useRouter();
   const { data: session } = useSession();
   const [showApplyModal, setShowApplyModal] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const viewTracked = useRef(false);
+  const viewStartTime = useRef<number | null>(null);
 
   const formattedCreatedAt = useMemo(
     () => formatRelativeTime(job.createdAt),
     [job.createdAt]
   );
+
+  // Verificar se vaga está salva
+  useEffect(() => {
+    if (!session?.user) return;
+
+    const checkSaved = async () => {
+      try {
+        const response = await fetch("/api/saved-jobs");
+        if (response.ok) {
+          const data = await response.json();
+          const saved = data.jobs?.some((j: any) => j._id === job._id);
+          setIsSaved(saved);
+        }
+      } catch (error) {
+        // Ignorar erro
+      }
+    };
+
+    checkSaved();
+  }, [session, job._id]);
+
+  // Tracking de view quando card entra na viewport
+  useEffect(() => {
+    if (!session?.user || viewTracked.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !viewTracked.current) {
+            viewTracked.current = true;
+            viewStartTime.current = Date.now();
+
+            // Registrar view
+            fetch("/api/interactions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                itemType: "job",
+                itemId: job._id,
+                interactionType: "view",
+              }),
+            }).catch(() => {});
+
+            // Atualizar duração periodicamente
+            const interval = setInterval(() => {
+              if (viewStartTime.current) {
+                const duration = Math.floor((Date.now() - viewStartTime.current) / 1000);
+                if (duration > 0 && duration % 5 === 0) {
+                  // Atualizar a cada 5 segundos
+                  fetch("/api/interactions", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      itemType: "job",
+                      itemId: job._id,
+                      interactionType: "view",
+                      duration: 5,
+                    }),
+                  }).catch(() => {});
+                }
+              }
+            }, 5000);
+
+            // Limpar quando sair da viewport
+            const cleanupObserver = new IntersectionObserver(
+              (entries) => {
+                entries.forEach((entry) => {
+                  if (!entry.isIntersecting && viewStartTime.current) {
+                    const duration = Math.floor(
+                      (Date.now() - viewStartTime.current) / 1000
+                    );
+                    if (duration > 0) {
+                      fetch("/api/interactions", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          itemType: "job",
+                          itemId: job._id,
+                          interactionType: "view",
+                          duration,
+                        }),
+                      }).catch(() => {});
+                    }
+                    viewStartTime.current = null;
+                    clearInterval(interval);
+                    cleanupObserver.disconnect();
+                  }
+                });
+              },
+              { threshold: 0 }
+            );
+
+            if (cardRef.current) {
+              cleanupObserver.observe(cardRef.current);
+            }
+
+            return () => {
+              clearInterval(interval);
+              cleanupObserver.disconnect();
+            };
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [session, job._id]);
+
+  const handleClick = () => {
+    if (session?.user) {
+      fetch("/api/interactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemType: "job",
+          itemId: job._id,
+          interactionType: "click",
+        }),
+      }).catch(() => {});
+    }
+  };
+
+  const handleSave = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!session?.user) {
+      router.push("/feed/auth/login");
+      return;
+    }
+
+    try {
+      if (isSaved) {
+        const response = await fetch(`/api/saved-jobs?jobId=${job._id}`, {
+          method: "DELETE",
+        });
+        if (response.ok) {
+          setIsSaved(false);
+          toast.success("Vaga removida dos salvos");
+        }
+      } else {
+        const response = await fetch("/api/saved-jobs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jobId: job._id }),
+        });
+        if (response.ok) {
+          setIsSaved(true);
+          toast.success("Vaga salva com sucesso");
+        }
+      }
+    } catch (error) {
+      toast.error("Erro ao salvar/remover vaga");
+    }
+  };
 
   const handleApplyClick = () => {
     if (!session) {
@@ -115,108 +282,98 @@ export default function JobCard({
   };
 
   const highlightSkills = job.skills?.slice(0, 4) || [];
-  const showSecondaryInfo = variant === "list";
 
   return (
-    <Card
-      className={
-        variant === "feed"
-          ? "border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow rounded-lg"
-          : "border border-blue-200 bg-blue-50/40 rounded-lg"
-      }
-    >
-      <CardHeader className="pb-3 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 flex-1">
-            <Avatar className="w-12 h-12 border border-gray-200">
-              {!job.companyId.logoUrl ? (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                  <LinkedInIcon id="company-accent-4" size={48} />
-                </div>
-              ) : (
-                <>
-                  <AvatarImage src={job.companyId.logoUrl} />
-                  <AvatarFallback className="bg-gray-100 text-gray-600">
-                    {job.companyId.name.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </>
-              )}
-            </Avatar>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 flex-wrap mb-1">
-                <h3 className="font-semibold text-base text-gray-900">
-                  {job.title}
-                </h3>
-                {job.matchScore !== undefined && (
-                  <Badge
-                    variant="secondary"
-                    className="flex items-center gap-1 bg-green-100 text-green-700 border-green-300 text-[11px] px-2 py-0.5"
-                  >
-                    <TrendingUp className="w-3 h-3" />
-                    {job.matchScore}% match
-                  </Badge>
+    <div ref={cardRef} className="bg-white rounded-lg border">
+      {/* Header */}
+      <div className="p-4 pb-3">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <Link href={`/companies/${job.companyId._id}`}>
+              <Avatar className="w-12 h-12 shrink-0 cursor-pointer hover:opacity-90 transition-opacity">
+                {!job.companyId.logoUrl ? (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                    <LinkedInIcon id="company-accent-4" size={48} />
+                  </div>
+                ) : (
+                  <>
+                    <AvatarImage src={job.companyId.logoUrl} alt={job.companyId.name} />
+                    <AvatarFallback className="bg-gray-100 text-gray-600 text-xs">
+                      {job.companyId.name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </>
                 )}
-              </div>
-              <p className="text-sm text-gray-600 mb-1">{job.companyId.name}</p>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3 h-3" />
-                  {job.location}
-                </span>
-                {job.remote && (
-                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">
-                    Remoto
-                  </span>
-                )}
-                <span className="flex items-center gap-1">
-                  <Briefcase className="w-3 h-3" />
-                  {typeLabels[job.type] || job.type}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
-                  {levelLabels[job.level] || job.level}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {formattedCreatedAt}
-                </span>
-              </div>
+              </Avatar>
+            </Link>
+
+            <div className="flex-1 min-w-0">
+              <Link href={`/companies/${job.companyId._id}`}>
+                <h4 className="font-semibold text-sm text-black leading-tight mb-0.5 truncate cursor-pointer hover:underline">
+                  {job.companyId.name}
+                </h4>
+              </Link>
+              <p className="text-xs text-black leading-tight mb-0.5 truncate">
+                {job.location}
+                {job.remote && " • Remoto"}
+              </p>
+              <p className="text-xs text-black leading-tight flex items-center gap-1">
+                {formattedCreatedAt} •{" "}
+                <LinkedInIcon id="globe-small" size={16} className="text-black" />
+              </p>
             </div>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0 px-4 pb-4 space-y-3">
-        <p className="text-sm text-gray-900 leading-relaxed line-clamp-3">
-          {job.description}
-        </p>
 
-        {highlightSkills.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {highlightSkills.map((skill) => (
-              <Badge
-                key={skill}
-                variant="outline"
-                className="border-blue-200 bg-blue-50 text-blue-700 text-[11px] px-2 py-0.5"
-              >
-                {skill}
-              </Badge>
-            ))}
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-gray-100">
-          <div className="flex items-center gap-4 text-sm text-gray-700">
-            {job.salaryRange &&
-              job.salaryRange.min !== undefined &&
-              job.salaryRange.max !== undefined && (
-                <div className="flex items-center gap-1 text-green-600 font-medium">
-                  <DollarSign className="w-4 h-4" />
-                  <span>
-                    R$ {job.salaryRange.min.toLocaleString("pt-BR")} - R${" "}
-                    {job.salaryRange.max.toLocaleString("pt-BR")}
-                  </span>
-                </div>
+          {/* Botão Salvar */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSave}
+              className="h-8 w-8 p-0"
+              title={isSaved ? "Remover dos salvos" : "Salvar vaga"}
+            >
+              {isSaved ? (
+                <BookmarkCheck className="w-4 h-4 text-blue-600" />
+              ) : (
+                <Bookmark className="w-4 h-4" />
               )}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-4 pb-4">
+        <div className="mb-3">
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <h3 className="font-semibold text-base text-black">
+              {job.title}
+            </h3>
+            {job.matchScore !== undefined && (
+              <Badge
+                variant="secondary"
+                className="flex items-center gap-1 bg-green-100 text-green-700 border-green-300 text-[11px] px-2 py-0.5"
+              >
+                <TrendingUp className="w-3 h-3" />
+                {job.matchScore}% match
+              </Badge>
+            )}
+          </div>
+
+          <p className="text-sm text-black leading-relaxed line-clamp-3 mb-3">
+            {job.description}
+          </p>
+
+          {/* Informações da vaga */}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 mb-3">
+            <span className="flex items-center gap-1">
+              <Briefcase className="w-3 h-3" />
+              {typeLabels[job.type] || job.type}
+            </span>
+            <span className="flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              {levelLabels[job.level] || job.level}
+            </span>
             {job.category && (
               <Badge
                 variant="outline"
@@ -225,45 +382,58 @@ export default function JobCard({
                 {job.category}
               </Badge>
             )}
+            {job.salaryRange &&
+              job.salaryRange.min !== undefined &&
+              job.salaryRange.max !== undefined && (
+                <span className="flex items-center gap-1 text-green-600 font-medium">
+                  <DollarSign className="w-3 h-3" />
+                  R$ {job.salaryRange.min.toLocaleString("pt-BR")} - R${" "}
+                  {job.salaryRange.max.toLocaleString("pt-BR")}
+                </span>
+              )}
           </div>
 
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild className="text-sm">
-              <Link href={`/jobs/${job._id}`}>
-                Ver detalhes
-                <ExternalLink className="w-3 h-3 ml-1" />
-              </Link>
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleApplyClick}
-              className="text-sm bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Briefcase className="w-3 h-3 mr-1" />
-              Candidatar-se
-            </Button>
-          </div>
-        </div>
-
-        {showSecondaryInfo && job.benefits && job.benefits.length > 0 && (
-          <div className="border-t border-blue-100 pt-3">
-            <p className="text-xs uppercase text-blue-700 font-semibold mb-2">
-              Benefícios principais
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {job.benefits.slice(0, 4).map((benefit) => (
+          {/* Skills */}
+          {highlightSkills.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {highlightSkills.map((skill) => (
                 <Badge
-                  key={benefit}
+                  key={skill}
                   variant="outline"
-                  className="bg-white text-blue-700 border-blue-200 text-[11px]"
+                  className="border-blue-200 bg-blue-50 text-blue-700 text-[11px] px-2 py-0.5"
                 >
-                  {benefit}
+                  {skill}
                 </Badge>
               ))}
             </div>
-          </div>
-        )}
-      </CardContent>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 border-t border-gray-200 pt-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleApplyClick}
+            className="flex-1 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+          >
+            <Briefcase className="w-4 h-4 mr-1.5" />
+            Candidatar-se
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            onClick={handleClick}
+            className="flex-1 text-sm font-medium"
+          >
+            <Link href={`/jobs/${job._id}`}>
+              Ver detalhes
+              <ExternalLink className="w-4 h-4 ml-1.5" />
+            </Link>
+          </Button>
+        </div>
+      </div>
 
       <ApplyJobModal
         open={showApplyModal}
@@ -273,6 +443,6 @@ export default function JobCard({
         companyName={job.companyId.name}
         onApplySuccess={handleApplySuccess}
       />
-    </Card>
+    </div>
   );
 }

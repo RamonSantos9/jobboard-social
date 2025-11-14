@@ -14,6 +14,8 @@ interface Education {
   degree: string;
   fieldOfStudy: string;
   current: boolean;
+  startDate?: Date | string;
+  endDate?: Date | string;
 }
 
 interface Profile {
@@ -51,8 +53,29 @@ export default function LeftSidebarJobs() {
     fetchProfile();
   }, [session]);
 
-  // Encontrar educação atual
-  const currentEducation = profile?.education?.find((edu) => edu.current);
+  // Encontrar educação atual - busca pela flag current ou pela mais recente
+  // Filtrar educações válidas (ignorar "TESTE" e valores vazios)
+  const validEducation =
+    profile?.education?.filter(
+      (edu) =>
+        edu.institution &&
+        edu.institution.trim() !== "" &&
+        edu.institution.trim().toUpperCase() !== "TESTE"
+    ) || [];
+
+  const currentEducation =
+    validEducation.find((edu) => edu.current) ||
+    (validEducation.length > 0
+      ? [...validEducation].sort((a, b) => {
+          // Ordenar por data de término (mais recente primeiro) ou por data de início
+          const aEnd = a.endDate ? new Date(a.endDate).getTime() : Infinity;
+          const bEnd = b.endDate ? new Date(b.endDate).getTime() : Infinity;
+          if (aEnd !== bEnd) return bEnd - aEnd;
+          const aStart = a.startDate ? new Date(a.startDate).getTime() : 0;
+          const bStart = b.startDate ? new Date(b.startDate).getTime() : 0;
+          return bStart - aStart;
+        })[0]
+      : null);
 
   if (loading)
     return (
@@ -66,11 +89,11 @@ export default function LeftSidebarJobs() {
     );
 
   return (
-    <aside className="w-full bg-[#f3f2ef]">
+    <aside className="w-full">
       {/* Card de Perfil */}
-      <Card className="rounded-lg overflow-hidden mb-3 border">
+      <Card className="rounded-lg overflow-hidden mb-3 border py-0">
         <div
-          className="h-12 w-full bg-cover bg-center"
+          className="h-12 w-full relative bg-cover bg-center"
           style={{
             backgroundImage: profile?.bannerUrl
               ? `url(${profile.bannerUrl})`
@@ -99,37 +122,39 @@ export default function LeftSidebarJobs() {
           </Link>
 
           <p className="text-xs text-black mt-1">
-            {profile?.headline ||
-              "Análise e Desenvolvimento de Sistemas | React | Next.js"}
+            {profile?.headline || "Título profissional"}
           </p>
 
           <p className="text-xs text-black mt-1 font-light">
-            {profile?.location || "Cunha, São Paulo"}
+            {profile?.location || "Localização"}
           </p>
 
-          {profile?.currentCompany && profile.currentCompany.trim() !== "" && (
+          {/* Priorizar instituição de ensino, senão mostrar empresa atual */}
+          {currentEducation &&
+          currentEducation.institution &&
+          currentEducation.institution.trim() !== "" &&
+          currentEducation.institution.trim().toUpperCase() !== "TESTE" ? (
             <div className="flex items-center gap-1.5 mt-1.5 text-xs text-black">
               <LinkedInIcon
                 id="company-accent-4"
                 size={16}
                 className="shrink-0"
               />
-              <span>{profile.currentCompany}</span>
+              <span>{currentEducation.institution}</span>
             </div>
-          )}
-
-          {(!profile?.currentCompany || profile.currentCompany.trim() === "") &&
-            currentEducation &&
-            currentEducation.institution && (
+          ) : (
+            profile?.currentCompany &&
+            profile.currentCompany.trim() !== "" && (
               <div className="flex items-center gap-1.5 mt-1.5 text-xs text-black">
                 <LinkedInIcon
                   id="company-accent-4"
                   size={16}
                   className="shrink-0"
                 />
-                <span>{currentEducation.institution}</span>
+                <span>{profile.currentCompany}</span>
               </div>
-            )}
+            )
+          )}
         </CardContent>
       </Card>
 

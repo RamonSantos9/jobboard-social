@@ -5,6 +5,8 @@ import User from "@/models/User";
 import Vacancy from "@/models/Vacancy";
 import Company from "@/models/Company";
 import Application from "@/models/Application";
+import { generateCompanyUsername, generateCompanyPassword } from "@/lib/company-utils";
+import mongoose from "mongoose";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,9 +21,9 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    // Verificar se o usuário é admin
-    const user = await User.findById(session.user.id).select("role").lean() as { role?: string } | null;
-    if (!user || user.role !== "admin") {
+    // Verificar se o usuário é admin usando o role da sessão
+    const userRole = (session.user as any)?.role || session.user?.role;
+    if (!userRole || userRole !== "admin") {
       return NextResponse.json(
         { error: "Acesso negado. Apenas administradores podem acessar." },
         { status: 403 }
@@ -115,9 +117,9 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
-    // Verificar se o usuário é admin
-    const user = await User.findById(session.user.id).select("role").lean() as { role?: string } | null;
-    if (!user || user.role !== "admin") {
+    // Verificar se o usuário é admin usando o role da sessão
+    const userRole = (session.user as any)?.role || session.user?.role;
+    if (!userRole || userRole !== "admin") {
       return NextResponse.json(
         { error: "Acesso negado. Apenas administradores podem criar vagas." },
         { status: 403 }
@@ -158,6 +160,26 @@ export async function POST(request: NextRequest) {
         { error: "Empresa não encontrada" },
         { status: 404 }
       );
+    }
+
+    // Gerar credenciais automaticamente se a empresa não tiver
+    let credentialsGenerated = false;
+    let generatedUsername = "";
+    let generatedPassword = "";
+    
+    if (!company.username || !company.password) {
+      if (!company.username) {
+        generatedUsername = await generateCompanyUsername(company.name, company.cnpj);
+        company.username = generatedUsername;
+      }
+      
+      if (!company.password) {
+        generatedPassword = generateCompanyPassword();
+        company.password = generatedPassword; // Será hasheado pelo pre-save hook
+      }
+      
+      await company.save();
+      credentialsGenerated = true;
     }
 
     // Criar vaga

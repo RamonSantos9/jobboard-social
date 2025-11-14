@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import LogoIcon from "@/components/LogoIcon";
 
 function ForgotPasswordPageContent() {
   const [email, setEmail] = useState("");
@@ -67,13 +68,9 @@ function ForgotPasswordPageContent() {
         <div className="p-8 pb-6">
           <div>
             <Link href="/" aria-label="ir para home">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-lg font-bold text-white">in</span>
-              </div>
+              <LogoIcon size="default" color="black" strokeWidth={300} />
             </Link>
-            <h1 className="mb-1 mt-4 text-xl font-semibold">
-              Redefinir Senha
-            </h1>
+            <h1 className="mb-1 mt-4 text-xl font-semibold">Redefinir Senha</h1>
             <p className="text-sm">
               Digite seu email para receber instruções de redefinição de senha
             </p>
@@ -134,4 +131,3 @@ export default function ForgotPasswordPage() {
     </Suspense>
   );
 }
-

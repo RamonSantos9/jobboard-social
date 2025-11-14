@@ -677,6 +677,345 @@ export default function RootLayout({
               ></path>
             </g>
           </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="edit-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M21.13 2.86a3 3 0 00-4.17 0l-13 13L2 22l6.19-2L21.13 7a3 3 0 000-4.16zM6.77 18.57l-1.35-1.34L16.64 6 18 7.35z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="analytics-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M23 20v1H1v-1zM8 9H2v10h6zm7-6H9v16h6zm7 11h-6v5h6z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            id="camera-small"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="16x16"
+            fill="currentColor"
+          >
+            <path d="M10 9a2 2 0 11-2-2 2 2 0 012 2zm5-2.5V14H1V6.5A2.5 2.5 0 013.5 4h.75L5 2h6l.75 2h.75A2.5 2.5 0 0115 6.5zM11 9a3 3 0 10-3 3 3 3 0 003-3z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            className="rtl-flip"
+            id="share-linkedin-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M23 12l-4.61 7H16l4-6H8a3.92 3.92 0 00-4 3.84V17a4 4 0 00.19 1.24L5.12 21H3l-.73-2.22A6.4 6.4 0 012 16.94 6 6 0 018 11h12l-4-6h2.39z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="download-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M21 14v5a3 3 0 01-3 3H6a3 3 0 01-3-3v-5h2v5a1 1 0 001 1h12a1 1 0 001-1v-5zm-4-.57V11l-4 2.85V3h-2v10.85L7 11v2.43L12 17z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="bookmark-fill-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M19 5a3 3 0 00-3-3H5v20l7-6.29L19 22z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="newspaper-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M13 13h5v1h-5zm5-5H6v3h12zm-5 8h5v-1h-5zm9-12v13a3 3 0 01-3 3H5a3 3 0 01-3-3V4zm-2 2H4v11a1 1 0 001 1h14a1 1 0 001-1zm-9 7H6v3h5z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="signal-notice-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M18 3H6a3 3 0 00-3 3v12a3 3 0 003 3h12a3 3 0 003-3V6a3 3 0 00-3-3zm-4 15h-1a3 3 0 01-3-3 3.22 3.22 0 01.1-.75L11.2 10h2.07L12 14.75A1 1 0 0013 16h1zm-1-9.75A1.25 1.25 0 1114.25 7 1.25 1.25 0 0113 8.25z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="skills-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M18.36 3H5.64L2 9.5 12 22 22 9.5 18.36 3zm-10.7 7l2.45 6.43L4.96 10h2.7zm1.07 0h6.54L12 18.59 8.73 10zm7.61 0h2.7l-5.15 6.43L16.34 10zm3.09-1h-3.07L14.9 5h2.3l2.24 4zm-5.6-4l1.46 4H8.71l1.46-4h3.66zM6.81 5h2.3L7.65 9H4.58l2.24-4z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            className="rtl-flip"
+            id="chevron-left-small"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="16x16"
+            fill="currentColor"
+          >
+            <path d="M11 1L6.39 8 11 15H8.61L4 8l4.61-7z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            id="skills-small"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="16x16"
+            fill="currentColor"
+          >
+            <path d="M12.67 2H3.33L1 6l7 8 7-8-2.33-4zM8.01 4h3.51l.87 1.5H3.61L4.49 4h3.53zM4.1 6.5h7.81l-3.9 4.46-3.9-4.46z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            id="link-external-small"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="16x16"
+            fill="currentColor"
+          >
+            <path d="M15 1v6h-2V4.41L7.41 10 6 8.59 11.59 3H9V1zm-4 10a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1h2V3H5a3 3 0 00-3 3v5a3 3 0 003 3h5a3 3 0 003-3V9h-2z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            id="check-small"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="16x16"
+            fill="currentColor"
+          >
+            <path d="M12.57 2H15L6 15l-5-5 1.41-1.41 3.31 3.3z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="linkedin-bug-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="phone-handset-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M21.7 19.18l-1.92 1.92a3.07 3.07 0 01-3.33.67 25.52 25.52 0 01-8.59-5.63 25.52 25.52 0 01-5.63-8.59 3.07 3.07 0 01.67-3.33L4.82 2.3a1 1 0 011.41 0l3.15 3.11A1.1 1.1 0 019.41 7L7.59 8.73a20.51 20.51 0 007.68 7.68l1.78-1.79a1.1 1.1 0 011.54 0l3.11 3.11a1 1 0 010 1.41z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="location-marker-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M12 2a7 7 0 00-6.1 10.43L12 23l6.1-10.57A7 7 0 0012 2zm0 10a3 3 0 113-3 3 3 0 01-3 3z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="envelope-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M2 4v13a3 3 0 003 3h14a3 3 0 003-3V4zm18 2v1.47l-8 5.33-8-5.33V6zm-1 12H5a1 1 0 01-1-1V8.67L12 14l8-5.33V17a1 1 0 01-1 1z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="calendar-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M3 3v15c0 1.66 1.34 3 3 3h12c1.66 0 3-1.34 3-3V3H3zm13 1.75a1.25 1.25 0 110 2.5 1.25 1.25 0 010-2.5zm-8 0a1.25 1.25 0 110 2.5 1.25 1.25 0 010-2.5zM19 18c0 .55-.45 1-1 1H6c-.55 0-1-.45-1-1V9h14v9zM7 11h2v2H7v-2zm0 4h2v2H7v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="link-external-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M21 3v9h-2V6.41L9.41 16 8 14.59 17.59 5H12V3zm-6 15a1 1 0 01-1 1H6a1 1 0 01-1-1v-8a1 1 0 011-1h5V7H6a3 3 0 00-3 3v8a3 3 0 003 3h8a3 3 0 003-3v-5h-2z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            id="visibility-small"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="16x16"
+            fill="currentColor"
+          >
+            <path d="M8 3a8.59 8.59 0 00-8 5 8.54 8.54 0 008 5 8.55 8.55 0 008-5 8.55 8.55 0 00-8-5zm0 8a3 3 0 113-3 3 3 0 01-3 3zm2-3a2 2 0 11-2-2 2 2 0 012 2z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            id="trash-small"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="16x16"
+            fill="currentColor"
+          >
+            <path d="M3 13a2 2 0 002 2h6a2 2 0 002-2V5H3zm6-6h1v5H9zM6 7h1v5H6zm8-4v1H2V3a1 1 0 011-1h3a1 1 0 011-1h2a1 1 0 011 1h3a1 1 0 011 1z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            className="rtl-flip"
+            id="question-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M12 2a10 10 0 1010 10A10 10 0 0012 2zm0 16.25A1.25 1.25 0 1113.25 17 1.25 1.25 0 0112 18.25zm1.41-5.46L13 13v1h-2v-2.21l1.49-.79C13.82 10.34 14 9.77 14 9.3c0-.78-.92-1.3-2.3-1.3A7.12 7.12 0 008 9.24V7a8 8 0 013.7-1c3 0 4.3 1.55 4.3 3.3a3.91 3.91 0 01-2.59 3.49z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="settings-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M9.18 2l-4.3 2.52L6.22 8l-.52.91-3.7.55v5l3.64.54.54.93-1.34 3.53L9.14 22l2.29-2.9h1.09l2.3 2.9 4.32-2.52L17.79 16l.53-.93 3.68-.53v-5L18.32 9l-.51-.9 1.36-3.51L14.86 2l-2.33 3h-1zM12 9a3 3 0 11-3 3 3 3 0 013-3z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="shield-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M12 2L3 5v6c0 5 3.12 8.81 7.77 10.56L12 22l1.27-.44C17.9 19.81 21.01 16 21.01 11V5L12 2zm-.53 17.8C7.6 18.35 5.01 15.1 5.01 11V6.44l7-2.32V20l-.54-.2z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            id="filter-small"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="16x16"
+            fill="currentColor"
+          >
+            <path d="M15 4H6.72a1.98 1.98 0 01-3.44 0H1V2h2.28a1.98 1.98 0 013.44 0H15v2zm0 8H6.72a1.98 1.98 0 00-3.44 0H1v2h2.28a1.98 1.98 0 003.44 0H15v-2zm0-5h-2.28a1.98 1.98 0 00-3.44 0H1v2h8.28a1.98 1.98 0 003.44 0H15V7z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="premium-chip-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+          >
+            <path
+              d="M20 20a3.36 3.36 0 001-2.39V6.38A3.38 3.38 0 0017.62 3H6.38A3.36 3.36 0 004 4z"
+              fill="#f8c77e"
+            ></path>
+            <path
+              d="M4 4a3.36 3.36 0 00-1 2.38v11.24A3.38 3.38 0 006.38 21h11.24A3.36 3.36 0 0020 20z"
+              fill="#e7a33e"
+            ></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="chevron-down-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M2 8l10 7.5L22 8v2.5L12 18 2 10.5z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="chevron-up-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M22 16L12 8.5 2 16v-2.5L12 6l10 7.5z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="camera-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M16 13a4 4 0 11-4-4 4 4 0 014 4zm6-4v11H2V9a3 3 0 013-3h1.3l1.2-3h9l1.2 3H19a3 3 0 013 3zm-5 4a5 5 0 10-5 5 5 5 0 005-5z"></path>
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            id="trash-medium"
+            aria-hidden="true"
+            role="none"
+            data-supported-dps="24x24"
+            fill="currentColor"
+          >
+            <path d="M20 4v1H4V4a1 1 0 011-1h4a1 1 0 011-1h4a1 1 0 011 1h4a1 1 0 011 1zM5 6h14v13a3 3 0 01-3 3H8a3 3 0 01-3-3zm9 12h1V8h-1zm-5 0h1V8H9z"></path>
+          </svg>
         </svg>
         <Providers>
           {children}

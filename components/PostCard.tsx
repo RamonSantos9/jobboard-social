@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -98,6 +98,9 @@ export default function PostCard({
   const [currentReaction, setCurrentReaction] = useState<ReactionType | null>(
     post.currentReaction || null
   );
+  const cardRef = useRef<HTMLDivElement>(null);
+  const viewTracked = useRef(false);
+  const viewStartTime = useRef<number | null>(null);
   const [reactionsCount, setReactionsCount] = useState(
     post.reactionsCount || {
       like: 0,
@@ -148,6 +151,19 @@ export default function PostCard({
         const data = await response.json();
         setCurrentReaction(data.currentReaction);
         setReactionsCount(data.reactionsCount);
+
+        // Registrar interação de like/reaction
+        if (session?.user) {
+          fetch("/api/interactions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              itemType: "post",
+              itemId: postId,
+              interactionType: reactionType ? "like" : "dismiss",
+            }),
+          }).catch(() => {});
+        }
 
         // Chamar callback opcional se fornecido
         if (onReaction) {
@@ -200,6 +216,100 @@ export default function PostCard({
       setIsHighlighted(highlighted);
     }
   };
+
+  // Tracking de view quando post entra na viewport
+  useEffect(() => {
+    if (!session?.user || viewTracked.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !viewTracked.current) {
+            viewTracked.current = true;
+            viewStartTime.current = Date.now();
+
+            // Registrar view
+            fetch("/api/interactions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                itemType: "post",
+                itemId: post._id,
+                interactionType: "view",
+              }),
+            }).catch(() => {});
+
+            // Atualizar duração periodicamente
+            const interval = setInterval(() => {
+              if (viewStartTime.current) {
+                const duration = Math.floor((Date.now() - viewStartTime.current) / 1000);
+                if (duration > 0 && duration % 5 === 0) {
+                  // Atualizar a cada 5 segundos
+                  fetch("/api/interactions", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      itemType: "post",
+                      itemId: post._id,
+                      interactionType: "view",
+                      duration: 5,
+                    }),
+                  }).catch(() => {});
+                }
+              }
+            }, 5000);
+
+            // Limpar quando sair da viewport
+            const cleanupObserver = new IntersectionObserver(
+              (entries) => {
+                entries.forEach((entry) => {
+                  if (!entry.isIntersecting && viewStartTime.current) {
+                    const duration = Math.floor(
+                      (Date.now() - viewStartTime.current) / 1000
+                    );
+                    if (duration > 0) {
+                      fetch("/api/interactions", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          itemType: "post",
+                          itemId: post._id,
+                          interactionType: "view",
+                          duration,
+                        }),
+                      }).catch(() => {});
+                    }
+                    viewStartTime.current = null;
+                    clearInterval(interval);
+                    cleanupObserver.disconnect();
+                  }
+                });
+              },
+              { threshold: 0 }
+            );
+
+            if (cardRef.current) {
+              cleanupObserver.observe(cardRef.current);
+            }
+
+            return () => {
+              clearInterval(interval);
+              cleanupObserver.disconnect();
+            };
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [session, post._id]);
 
   // Buscar status de seguindo ao carregar
   useEffect(() => {
@@ -372,7 +482,7 @@ export default function PostCard({
   }, [post.isSuggestion, isFollowing, isOwner, session]);
 
   return (
-    <div className="bg-white rounded-lg border">
+    <div ref={cardRef} className="bg-white rounded-lg border">
       {/* Header */}
       <div className="p-4 pb-3">
         {/* Linha de Reação/Sugestão */}
@@ -683,7 +793,21 @@ export default function PostCard({
             onReaction={handleReaction}
           />
           <button
-            onClick={() => setShowComments(!showComments)}
+            onClick={() => {
+              setShowComments(!showComments);
+              // Registrar interação de comentário quando abre
+              if (!showComments && session?.user) {
+                fetch("/api/interactions", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    itemType: "post",
+                    itemId: post._id,
+                    interactionType: "comment",
+                  }),
+                }).catch(() => {});
+              }
+            }}
             className="flex items-center justify-center gap-1 md:gap-2 text-[13px] md:text-xs font-medium rounded-md transition-colors duration-150 hover:bg-gray-100 px-2 py-1.5 md:px-4 md:py-2 flex-1 text-black hover:text-black"
           >
             <LinkedInIcon

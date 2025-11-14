@@ -27,7 +27,18 @@ import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { IconX, IconLoader } from "@tabler/icons-react";
+import { IconX, IconLoader, IconPlus, IconEye, IconEyeOff } from "@tabler/icons-react";
+import { UserCombobox } from "@/components/admin/user-combobox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Admin {
   _id: string;
@@ -48,6 +59,8 @@ interface Company {
   isVerified: boolean;
   benefits: string[];
   culture?: string;
+  sidebarTitle?: string;
+  username?: string;
   socialLinks?: {
     linkedin?: string;
     twitter?: string;
@@ -73,81 +86,186 @@ export function EditCompanyDrawer({
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [removingAdminId, setRemovingAdminId] = React.useState<string | null>(null);
+  const [showRemoveDialog, setShowRemoveDialog] = React.useState(false);
+  const [adminToRemove, setAdminToRemove] = React.useState<{ id: string; name: string } | null>(null);
+  const [assigningAdmin, setAssigningAdmin] = React.useState(false);
+  const [selectedUserId, setSelectedUserId] = React.useState("");
+  const [selectedUserName, setSelectedUserName] = React.useState("");
+  const [selectedRole, setSelectedRole] = React.useState<"admin" | "recruiter">("admin");
+  const [showAssignDialog, setShowAssignDialog] = React.useState(false);
+  const [showPassword, setShowPassword] = React.useState(false);
   const [companyData, setCompanyData] = React.useState<Company>(company);
   const [formData, setFormData] = React.useState({
-    name: company.name || "",
-    cnpj: company.cnpj || "",
-    industry: company.industry || "",
-    description: company.description || "",
-    size: company.size || "medium",
-    location: company.location || "",
-    website: company.website || "",
-    foundedYear: company.foundedYear?.toString() || "",
-    isVerified: company.isVerified || false,
-    culture: company.culture || "",
-    benefits: company.benefits?.join(", ") || "",
-    linkedin: company.socialLinks?.linkedin || "",
-    twitter: company.socialLinks?.twitter || "",
-    facebook: company.socialLinks?.facebook || "",
-    instagram: company.socialLinks?.instagram || "",
+    name: company?.name || "",
+    sidebarTitle: company?.sidebarTitle || "",
+    username: company?.username || "",
+    password: "", // Sempre vazio inicialmente, só preencher se o admin quiser alterar
+    cnpj: company?.cnpj || "",
+    industry: company?.industry || "",
+    description: company?.description || "",
+    size: company?.size || "medium",
+    location: company?.location || "",
+    website: company?.website || "",
+    foundedYear: company?.foundedYear?.toString() || "",
+    isVerified: company?.isVerified || false,
+    culture: company?.culture || "",
+    benefits: company?.benefits?.join(", ") || "",
+    linkedin: company?.socialLinks?.linkedin || "",
+    twitter: company?.socialLinks?.twitter || "",
+    facebook: company?.socialLinks?.facebook || "",
+    instagram: company?.socialLinks?.instagram || "",
   });
 
   // Função para buscar dados atualizados da empresa
   const fetchCompanyData = React.useCallback(async () => {
     try {
-      const companyId = String(company._id);
+      const companyId = company?._id || companyData?._id;
+      if (!companyId) {
+        console.error("Company ID não encontrado");
+        return;
+      }
       const response = await fetch(`/api/admin/companies/${companyId}`);
       if (response.ok) {
         const data = await response.json();
         if (data.company) {
           setCompanyData(data.company);
           // Atualizar também os dados do formulário
-          setFormData((prev) => ({
-            ...prev,
-            name: data.company.name || prev.name,
-            cnpj: data.company.cnpj || prev.cnpj,
-            industry: data.company.industry || prev.industry,
-            description: data.company.description || prev.description,
-            size: data.company.size || prev.size,
-            location: data.company.location || prev.location,
-            website: data.company.website || prev.website,
-            foundedYear: data.company.foundedYear?.toString() || prev.foundedYear,
-            isVerified: data.company.isVerified ?? prev.isVerified,
-            culture: data.company.culture || prev.culture,
-            benefits: data.company.benefits?.join(", ") || prev.benefits,
-            linkedin: data.company.socialLinks?.linkedin || prev.linkedin,
-            twitter: data.company.socialLinks?.twitter || prev.twitter,
-            facebook: data.company.socialLinks?.facebook || prev.facebook,
-            instagram: data.company.socialLinks?.instagram || prev.instagram,
-          }));
+          setFormData({
+            name: data.company.name || "",
+            sidebarTitle: data.company.sidebarTitle || "",
+            username: data.company.username || "",
+            password: "", // Sempre vazio, não mostrar senha atual
+            cnpj: data.company.cnpj || "",
+            industry: data.company.industry || "",
+            description: data.company.description || "",
+            size: data.company.size || "medium",
+            location: data.company.location || "",
+            website: data.company.website || "",
+            foundedYear: data.company.foundedYear?.toString() || "",
+            isVerified: data.company.isVerified || false,
+            culture: data.company.culture || "",
+            benefits: data.company.benefits?.join(", ") || "",
+            linkedin: data.company.socialLinks?.linkedin || "",
+            twitter: data.company.socialLinks?.twitter || "",
+            facebook: data.company.socialLinks?.facebook || "",
+            instagram: data.company.socialLinks?.instagram || "",
+          });
         }
       }
     } catch (error) {
       console.error("Error fetching company data:", error);
     }
-  }, [company._id]);
+  }, [company?._id, companyData?._id]);
 
   // Buscar dados atualizados da empresa quando o drawer abrir
   React.useEffect(() => {
     if (open) {
+      // Sempre buscar dados atualizados quando abrir, mesmo se company prop estiver vazio
       fetchCompanyData();
     }
   }, [open, fetchCompanyData]);
 
   // Atualizar companyData quando company prop mudar
   React.useEffect(() => {
-    if (company) {
+    if (company && company._id) {
       // Só atualizar se não estiver aberto (para evitar conflitos)
       if (!open) {
         setCompanyData(company);
+        setFormData({
+          name: company.name || "",
+          sidebarTitle: company.sidebarTitle || "",
+          username: company.username || "",
+          password: "", // Sempre vazio, não mostrar senha atual
+          cnpj: company.cnpj || "",
+          industry: company.industry || "",
+          description: company.description || "",
+          size: company.size || "medium",
+          location: company.location || "",
+          website: company.website || "",
+          foundedYear: company.foundedYear?.toString() || "",
+          isVerified: company.isVerified || false,
+          culture: company.culture || "",
+          benefits: company.benefits?.join(", ") || "",
+          linkedin: company.socialLinks?.linkedin || "",
+          twitter: company.socialLinks?.twitter || "",
+          facebook: company.socialLinks?.facebook || "",
+          instagram: company.socialLinks?.instagram || "",
+        });
       }
     }
   }, [company, open]);
 
-  const handleRemoveAdmin = async (adminId: string, adminName: string) => {
-    setRemovingAdminId(adminId);
+  const handleAssignAdmin = async () => {
+    if (!selectedUserId) {
+      toast.error("Selecione um usuário");
+      return;
+    }
+
+    setAssigningAdmin(true);
     try {
-      const companyId = String(company._id);
+      const companyId = String(company?._id || companyData?._id);
+      if (!companyId || companyId === "undefined") {
+        toast.error("ID da empresa não encontrado");
+        return;
+      }
+      const response = await fetch(
+        `/api/admin/companies/${companyId}/assign-admin`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId: selectedUserId, role: selectedRole }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao atribuir admin");
+      }
+
+      const roleText = selectedRole === "admin" ? "administrador" : "recrutador";
+      toast.success(data.message || `${roleText.charAt(0).toUpperCase() + roleText.slice(1)} atribuído com sucesso!`);
+
+      // Limpar seleção
+      setSelectedUserId("");
+      setSelectedUserName("");
+      setSelectedRole("admin");
+      setShowAssignDialog(false);
+
+      // Recarregar dados atualizados
+      await fetchCompanyData();
+    } catch (error: any) {
+      console.error("Error assigning admin:", error);
+      toast.error(error.message || "Erro ao atribuir admin");
+    } finally {
+      setAssigningAdmin(false);
+    }
+  };
+
+  const handleUserSelect = (userId: string, userName?: string) => {
+    if (userId) {
+      setSelectedUserId(userId);
+      if (userName) {
+        setSelectedUserName(userName);
+      }
+    } else {
+      setSelectedUserId("");
+      setSelectedUserName("");
+    }
+  };
+
+  const handleRemoveAdmin = async () => {
+    if (!adminToRemove) return;
+    
+    setRemovingAdminId(adminToRemove.id);
+    try {
+      const companyId = String(company?._id || companyData?._id);
+      if (!companyId) {
+        toast.error("ID da empresa não encontrado");
+        return;
+      }
       const response = await fetch(
         `/api/admin/companies/${companyId}/remove-admin`,
         {
@@ -155,7 +273,7 @@ export function EditCompanyDrawer({
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ userId: adminId }),
+          body: JSON.stringify({ userId: adminToRemove.id }),
         }
       );
 
@@ -173,6 +291,10 @@ export function EditCompanyDrawer({
       
       // Recarregar dados atualizados
       await fetchCompanyData();
+      
+      // Fechar dialog e limpar
+      setShowRemoveDialog(false);
+      setAdminToRemove(null);
     } catch (error: any) {
       console.error("Error removing admin:", error);
       toast.error(error.message || "Erro ao remover admin");
@@ -186,7 +308,12 @@ export function EditCompanyDrawer({
     setLoading(true);
 
     try {
-      const companyId = String(company._id);
+      const companyId = String(company?._id || companyData?._id);
+      if (!companyId || companyId === "undefined") {
+        toast.error("ID da empresa não encontrado");
+        setLoading(false);
+        return;
+      }
       const response = await fetch(`/api/admin/companies/${companyId}`, {
         method: "PUT",
         headers: {
@@ -194,6 +321,9 @@ export function EditCompanyDrawer({
         },
         body: JSON.stringify({
           name: formData.name,
+          sidebarTitle: formData.sidebarTitle || undefined,
+          username: formData.username || undefined,
+          password: formData.password || undefined, // Só enviar se fornecido
           cnpj: formData.cnpj,
           industry: formData.industry,
           description: formData.description,
@@ -259,6 +389,70 @@ export function EditCompanyDrawer({
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
             />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <Label htmlFor="sidebarTitle">Título do Sidebar (máx. 50 caracteres)</Label>
+            <Input
+              id="sidebarTitle"
+              value={formData.sidebarTitle}
+              onChange={(e) => {
+                const value = e.target.value.substring(0, 50);
+                setFormData({ ...formData, sidebarTitle: value });
+              }}
+              placeholder="Deixe em branco para usar o nome da empresa"
+              maxLength={50}
+            />
+            <p className="text-xs text-muted-foreground">
+              Título personalizado que aparece no sidebar do dashboard. Se vazio, será usado o nome da empresa.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <Label htmlFor="username">Username de Login</Label>
+            <Input
+              id="username"
+              value={formData.username}
+              onChange={(e) => {
+                const value = e.target.value.toLowerCase().trim().replace(/[^a-z0-9_-]/g, "");
+                setFormData({ ...formData, username: value });
+              }}
+              placeholder="username-empresa"
+            />
+            <p className="text-xs text-muted-foreground">
+              Username único usado para login. Apenas letras minúsculas, números, underscores e hífens.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <Label htmlFor="password">Nova Senha (deixe em branco para não alterar)</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="••••••••"
+                className="pr-10"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? (
+                  <IconEyeOff className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <IconEye className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="sr-only">Mostrar senha</span>
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Deixe em branco para manter a senha atual. Preencha apenas se desejar alterar.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -428,7 +622,70 @@ export function EditCompanyDrawer({
           {/* Seção de Administradores */}
           <div className="flex flex-col gap-3 border-t pt-4">
             <Label>Administradores da Empresa</Label>
-            {companyData.admins && companyData.admins.length > 0 ? (
+            
+            {/* Adicionar Admin */}
+            <div className="flex flex-col gap-2 p-3 rounded-lg border border-dashed">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex-1 min-w-[200px]">
+                  <UserCombobox
+                    onSelect={handleUserSelect}
+                    onClear={() => {
+                      setSelectedUserId("");
+                      setSelectedUserName("");
+                    }}
+                    placeholder="Pesquisar usuário para adicionar..."
+                    disabled={assigningAdmin}
+                    value={selectedUserId}
+                  />
+                </div>
+                {selectedUserId && (
+                  <>
+                    <Select
+                      value={selectedRole}
+                      onValueChange={(value) => setSelectedRole(value as "admin" | "recruiter")}
+                      disabled={assigningAdmin}
+                    >
+                      <SelectTrigger className="w-[140px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Administrador</SelectItem>
+                        <SelectItem value="recruiter">Recrutador</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      onClick={() => setShowAssignDialog(true)}
+                      disabled={assigningAdmin}
+                      variant="default"
+                      className="h-8"
+                    >
+                      {assigningAdmin ? (
+                        <IconLoader className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <IconPlus className="h-4 w-4 mr-2" />
+                      )}
+                      Adicionar
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSelectedUserId("");
+                        setSelectedUserName("");
+                        setSelectedRole("admin");
+                      }}
+                      disabled={assigningAdmin}
+                      variant="ghost"
+                      className="h-8"
+                    >
+                      <IconX className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {companyData?.admins && companyData.admins.length > 0 ? (
               <div className="flex flex-col gap-2">
                 {companyData.admins.map((admin) => (
                   <div
@@ -452,16 +709,15 @@ export function EditCompanyDrawer({
                       </span>
                     </div>
                     <Badge variant="default">Admin</Badge>
-                    {companyData.admins && companyData.admins.length > 1 && (
+                    {companyData?.admins && companyData.admins.length > 1 && (
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                         disabled={removingAdminId === admin._id}
                         onClick={() => {
-                          if (confirm(`Tem certeza que deseja remover ${admin.name} como administrador da empresa?`)) {
-                            handleRemoveAdmin(admin._id, admin.name);
-                          }
+                          setAdminToRemove({ id: admin._id, name: admin.name });
+                          setShowRemoveDialog(true);
                         }}
                         title="Remover admin"
                       >
@@ -483,14 +739,14 @@ export function EditCompanyDrawer({
           </div>
 
           {/* Seção de Recrutadores */}
-          {companyData.recruiters && companyData.recruiters.length > 0 && (
+          {companyData?.recruiters && companyData.recruiters.length > 0 && (
             <div className="flex flex-col gap-3 border-t pt-4">
               <Label>Recrutadores da Empresa</Label>
               <div className="flex flex-col gap-2">
                 {companyData.recruiters
                   .filter(
                     (recruiter) =>
-                      !companyData.admins?.some(
+                      !companyData?.admins?.some(
                         (admin) => admin._id === recruiter._id
                       )
                   )
@@ -533,6 +789,38 @@ export function EditCompanyDrawer({
           </DrawerClose>
         </DrawerFooter>
       </DrawerContent>
+      <AlertDialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Remoção</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover <strong>{adminToRemove?.name}</strong> como administrador da empresa <strong>{companyData?.name || company?.name}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setAdminToRemove(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRemoveAdmin} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Atribuição</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja atribuir <strong>{selectedUserName || "este usuário"}</strong> como <strong>{selectedRole === "admin" ? "administrador" : "recrutador"}</strong> da empresa <strong>{companyData?.name || company?.name}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAssignAdmin}>
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Drawer>
   );
 }

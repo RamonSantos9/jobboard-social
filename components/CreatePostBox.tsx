@@ -7,7 +7,8 @@ import CreatePostModal from "./CreatePostModal";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import LinkedInIcon from "@/components/LinkedInIcon";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function CreatePostBox({
   onPostCreated,
@@ -19,6 +20,60 @@ export default function CreatePostBox({
   const [modalAction, setModalAction] = useState<"image" | "video" | null>(
     null
   );
+  const [userProfile, setUserProfile] = useState<{
+    photoUrl?: string;
+    firstName?: string;
+    lastName?: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Função para buscar perfil
+  const fetchProfile = useCallback(async () => {
+    if (!session) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const response = await fetch("/api/profile");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.profile) {
+          setUserProfile({
+            photoUrl: data.profile.photoUrl,
+            firstName: data.profile.firstName,
+            lastName: data.profile.lastName,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [session]);
+
+  // Buscar perfil do usuário
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  // Listener para atualizar foto quando o usuário mudar a foto de perfil
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      fetchProfile();
+    };
+
+    // Escutar evento customizado de atualização de perfil
+    window.addEventListener("profilePhotoUpdated", handleProfileUpdate);
+
+    // Também escutar quando a janela recebe foco (caso o usuário tenha mudado a foto em outra aba)
+    window.addEventListener("focus", handleProfileUpdate);
+
+    return () => {
+      window.removeEventListener("profilePhotoUpdated", handleProfileUpdate);
+      window.removeEventListener("focus", handleProfileUpdate);
+    };
+  }, [fetchProfile]);
 
   // Resetar modalAction quando o modal fechar
   useEffect(() => {
@@ -26,6 +81,23 @@ export default function CreatePostBox({
       setModalAction(null);
     }
   }, [isModalOpen]);
+
+  // Skeleton Component
+  if (loading) {
+    return (
+      <Card className="border rounded-lg p-4">
+        <div className="flex items-center gap-3">
+          <Skeleton className="w-12 h-12 rounded-full" />
+          <Skeleton className="flex-1 h-12 rounded-full" />
+        </div>
+        <div className="flex items-center justify-around mt-4">
+          <Skeleton className="h-10 w-20" />
+          <Skeleton className="h-10 w-20" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <motion.div
@@ -37,8 +109,16 @@ export default function CreatePostBox({
         {/* Linha superior - avatar + botão */}
         <div className="flex items-center gap-3">
           <Avatar className="w-12 h-12">
-            <AvatarImage src="/placeholder/userplaceholder.svg" />
-            <AvatarFallback>{session?.user?.name?.[0] || "U"}</AvatarFallback>
+            <AvatarImage
+              src={userProfile?.photoUrl || "/placeholder/userplaceholder.svg"}
+            />
+            <AvatarFallback>
+              {userProfile?.firstName?.[0] || ""}
+              {userProfile?.lastName?.[0] || ""}
+              {!userProfile?.firstName && !userProfile?.lastName
+                ? session?.user?.name?.[0] || "U"
+                : ""}
+            </AvatarFallback>
           </Avatar>
 
           <CreatePostModal

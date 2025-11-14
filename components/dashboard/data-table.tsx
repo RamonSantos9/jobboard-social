@@ -34,7 +34,6 @@ import {
   IconPlus,
   IconTrendingUp,
   IconX,
-  IconArrowUp,
 } from "@tabler/icons-react";
 import {
   type ColumnDef,
@@ -56,12 +55,28 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { EditCompanyDrawer } from "@/components/admin/edit-company-drawer";
 import { CreateCompanyDrawer } from "@/components/admin/create-company-drawer";
-import { UserCombobox } from "@/components/admin/user-combobox";
 import { CreateUserDrawer } from "@/components/admin/create-user-drawer";
 import { EditUserDrawer } from "@/components/admin/edit-user-drawer";
 import { CreateVacancyDrawer } from "@/components/admin/create-vacancy-drawer";
 import { EditVacancyDrawer } from "@/components/admin/edit-vacancy-drawer";
 import { CreateApplicationDrawer } from "@/components/admin/create-application-drawer";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
@@ -93,13 +108,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -531,7 +539,14 @@ export function DataTable({
           setAllUsers(data.users || []);
           setUsersTotal(data.total || 0);
         } else {
-          console.error("Erro ao buscar usuarios:", await response.json());
+          const errorData = await response.json().catch(() => ({}));
+          console.error("Erro ao buscar usuarios:", errorData);
+          
+          // Se for 403, redirecionar para /feed
+          if (response.status === 403) {
+            window.location.href = "/feed";
+            return;
+          }
         }
       } catch (error) {
         console.error("Erro ao buscar usuarios:", error);
@@ -1525,6 +1540,9 @@ export function DataTable({
                         onRefresh={() =>
                           setCompaniesRefreshKey((prev) => prev + 1)
                         }
+                        onUsersRefresh={() =>
+                          setUsersRefreshKey((prev) => prev + 1)
+                        }
                       />
                     ))
                   ) : (
@@ -1894,80 +1912,13 @@ function AdminCompanyRow({
   row,
   onUpdate,
   onRefresh,
+  onUsersRefresh,
 }: {
   row: any;
   onUpdate?: (company: any) => void;
   onRefresh?: () => void;
+  onUsersRefresh?: () => void;
 }) {
-  const [assigningAdmin, setAssigningAdmin] = React.useState(false);
-  const [selectedUserId, setSelectedUserId] = React.useState("");
-  const [selectedUserName, setSelectedUserName] = React.useState("");
-
-  const handleAssignAdmin = async () => {
-    if (!selectedUserId) {
-      toast.error("Selecione um usuário");
-      return;
-    }
-
-    setAssigningAdmin(true);
-    try {
-      const response = await fetch(
-        `/api/admin/companies/${row._id}/assign-admin`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ userId: selectedUserId }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao atribuir admin");
-      }
-
-      toast.success(data.message || "Admin atribuído com sucesso!");
-
-      // Limpar seleção
-      handleClearUser();
-
-      // Usar empresa retornada pela API se disponível
-      if (data.company && onUpdate) {
-        onUpdate(data.company);
-      }
-
-      // Recarregar lista de empresas para atualizar os dados
-      if (onRefresh) {
-        onRefresh();
-      }
-    } catch (error: any) {
-      console.error("Error assigning admin:", error);
-      toast.error(error.message || "Erro ao atribuir admin");
-    } finally {
-      setAssigningAdmin(false);
-    }
-  };
-
-  const handleUserSelect = (userId: string, userName?: string) => {
-    if (userId) {
-      setSelectedUserId(userId);
-      if (userName) {
-        setSelectedUserName(userName);
-      }
-    } else {
-      // Limpar seleção
-      setSelectedUserId("");
-      setSelectedUserName("");
-    }
-  };
-
-  const handleClearUser = () => {
-    setSelectedUserId("");
-    setSelectedUserName("");
-  };
-
   const handleCompanyUpdate = (company: any) => {
     if (onUpdate) {
       onUpdate(company);
@@ -1976,13 +1927,29 @@ function AdminCompanyRow({
     if (onRefresh) {
       onRefresh();
     }
+    // Recarregar lista de usuários se necessário
+    if (onUsersRefresh) {
+      onUsersRefresh();
+    }
   };
 
   return (
     <TableRow>
       <TableCell>
         <EditCompanyDrawer
-          company={row.company}
+          company={row.company || {
+            _id: row._id,
+            name: row.empresa,
+            cnpj: "",
+            industry: "",
+            description: "",
+            size: "medium",
+            location: "",
+            isVerified: row.statusSecao === "Verificada",
+            benefits: [],
+            admins: [],
+            recruiters: [],
+          }}
           onUpdate={handleCompanyUpdate}
           trigger={
             <Button
@@ -2001,47 +1968,27 @@ function AdminCompanyRow({
       <TableCell className="text-right">{row.limite}</TableCell>
       <TableCell>{row.revisor}</TableCell>
       <TableCell>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex-1 min-w-[200px]">
-            <UserCombobox
-              onSelect={handleUserSelect}
-              onClear={handleClearUser}
-              placeholder="Pesquisar usuário..."
-              disabled={assigningAdmin}
-              value={selectedUserId}
-            />
-          </div>
-          {selectedUserId && (
-            <>
-              <Button
-                size="icon"
-                onClick={handleAssignAdmin}
-                disabled={assigningAdmin}
-                variant="default"
-                className="h-8 w-8"
-                title="Atribuir Admin"
-              >
-                {assigningAdmin ? (
-                  <IconLoader className="h-4 w-4 animate-spin" />
-                ) : (
-                  <IconArrowUp className="h-4 w-4" />
-                )}
-                <span className="sr-only">Atribuir Admin</span>
-              </Button>
-              <Button
-                size="icon"
-                onClick={handleClearUser}
-                disabled={assigningAdmin}
-                variant="ghost"
-                className="h-8 w-8"
-                title="Cancelar"
-              >
-                <IconX className="h-4 w-4" />
-                <span className="sr-only">Cancelar</span>
-              </Button>
-            </>
-          )}
-        </div>
+        <EditCompanyDrawer
+          company={row.company || {
+            _id: row._id,
+            name: row.empresa,
+            cnpj: "",
+            industry: "",
+            description: "",
+            size: "medium",
+            location: "",
+            isVerified: row.statusSecao === "Verificada",
+            benefits: [],
+            admins: [],
+            recruiters: [],
+          }}
+          onUpdate={handleCompanyUpdate}
+          trigger={
+            <Button variant="ghost" size="sm">
+              Editar
+            </Button>
+          }
+        />
       </TableCell>
     </TableRow>
   );

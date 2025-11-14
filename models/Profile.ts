@@ -18,6 +18,7 @@ export interface IProfile extends Document {
     phone?: string;
     email?: string;
     website?: string;
+    websiteLinkText?: string;
   };
   preferredLocation?: string;
   experience?: Array<{
@@ -115,6 +116,11 @@ const ProfileSchema = new Schema<IProfile>(
         default: "",
       },
       website: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      websiteLinkText: {
         type: String,
         trim: true,
         default: "",

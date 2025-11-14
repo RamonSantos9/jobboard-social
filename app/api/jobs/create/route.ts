@@ -4,6 +4,7 @@ import connectDB from "@/lib/db";
 import mongoose from "mongoose";
 import Company from "@/models/Company";
 import Vacancy, { vacancyLevelSalaryBands, type VacancyLevel } from "@/models/Vacancy";
+import { generateCompanyUsername, generateCompanyPassword } from "@/lib/company-utils";
 
 export async function POST(request: NextRequest) {
   try {
@@ -76,6 +77,26 @@ export async function POST(request: NextRequest) {
         { error: "Você não tem permissão para criar vagas nesta empresa" },
         { status: 403 }
       );
+    }
+
+    // Gerar credenciais automaticamente se a empresa não tiver
+    let credentialsGenerated = false;
+    let generatedUsername = "";
+    let generatedPassword = "";
+    
+    if (!company.username || !company.password) {
+      if (!company.username) {
+        generatedUsername = await generateCompanyUsername(company.name, company.cnpj);
+        company.username = generatedUsername;
+      }
+      
+      if (!company.password) {
+        generatedPassword = generateCompanyPassword();
+        company.password = generatedPassword; // Será hasheado pelo pre-save hook
+      }
+      
+      await company.save();
+      credentialsGenerated = true;
     }
 
     // Determinar se é remoto baseado no workLocationType

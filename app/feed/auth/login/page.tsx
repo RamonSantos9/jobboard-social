@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import LogoIcon from "@/components/LogoIcon";
 
 function LoginPageContent() {
   const [email, setEmail] = useState("");
@@ -212,9 +213,7 @@ function LoginPageContent() {
         <div className="p-8 pb-6">
           <div>
             <Link href="/" aria-label="ir para home">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-lg font-bold text-white">in</span>
-              </div>
+              <LogoIcon size="default" color="black" strokeWidth={300} />
             </Link>
             <h1 className="mb-1 mt-4 text-xl font-semibold">
               Entrar no JobBoard
@@ -278,6 +277,14 @@ function LoginPageContent() {
             Não tem uma conta?{" "}
             <Button asChild variant="link" className="px-2">
               <Link href="/feed/auth/register">Criar conta</Link>
+            </Button>
+          </p>
+          <p className="text-black text-center text-sm mt-2">
+            É uma empresa?{" "}
+            <Button asChild variant="link" className="px-2">
+              <Link href="/feed/auth/login/company">
+                Fazer login como empresa
+              </Link>
             </Button>
           </p>
         </div>
