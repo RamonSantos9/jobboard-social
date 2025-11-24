@@ -506,10 +506,11 @@ export default function ApplicationDetailsPage() {
                 </div>
               </div>
             </div>
+          </div>
           </ScrollWrapper>
         </SidebarInset>
       </SidebarProvider>
     );
-  );
+
 }
 
