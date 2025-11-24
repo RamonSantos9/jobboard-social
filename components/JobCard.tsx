@@ -15,9 +15,9 @@ import {
   ExternalLink,
   Clock,
   Sparkles,
+  CheckCircle2,
 } from "lucide-react";
 import LinkedInIcon from "./LinkedInIcon";
-import ApplyJobModal from "./ApplyJobModal";
 import { toast } from "sonner";
 import { Bookmark, BookmarkCheck } from "lucide-react";
 
@@ -97,6 +97,8 @@ export default function JobCard({
   const { data: session } = useSession();
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [hasApplied, setHasApplied] = useState(false);
+  const [checkingApplication, setCheckingApplication] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const viewTracked = useRef(false);
   const viewStartTime = useRef<number | null>(null);
@@ -124,6 +126,31 @@ export default function JobCard({
     };
 
     checkSaved();
+  }, [session, job._id]);
+
+  // Verificar se já se candidatou
+  useEffect(() => {
+    if (!session?.user || !job._id) {
+      setCheckingApplication(false);
+      return;
+    }
+
+    setCheckingApplication(true);
+    const checkApplication = async () => {
+      try {
+        const response = await fetch(`/api/applications/check?jobId=${job._id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setHasApplied(data.hasApplied);
+        }
+      } catch (error) {
+        console.error("Error checking application:", error);
+      } finally {
+        setCheckingApplication(false);
+      }
+    };
+
+    checkApplication();
   }, [session, job._id]);
 
   // Tracking de view quando card entra na viewport
@@ -273,11 +300,18 @@ export default function JobCard({
       router.push("/feed/auth/login");
       return;
     }
-    setShowApplyModal(true);
+
+    if (hasApplied) {
+      return;
+    }
+
+    // Redirecionar para página de aplicação
+    router.push(`/jobs/${job._id}/apply`);
   };
 
   const handleApplySuccess = () => {
     setShowApplyModal(false);
+    setHasApplied(true);
     onApplySuccess?.();
   };
 
@@ -349,6 +383,15 @@ export default function JobCard({
             <h3 className="font-semibold text-base text-black">
               {job.title}
             </h3>
+            {hasApplied && (
+              <Badge
+                variant="secondary"
+                className="flex items-center gap-1 bg-blue-100 text-blue-700 border-blue-300 text-[11px] px-2 py-0.5"
+              >
+                <CheckCircle2 className="w-3 h-3" />
+                Candidatado
+              </Badge>
+            )}
             {job.matchScore !== undefined && (
               <Badge
                 variant="secondary"
@@ -383,8 +426,8 @@ export default function JobCard({
               </Badge>
             )}
             {job.salaryRange &&
-              job.salaryRange.min !== undefined &&
-              job.salaryRange.max !== undefined && (
+              job.salaryRange.min != null &&
+              job.salaryRange.max != null && (
                 <span className="flex items-center gap-1 text-green-600 font-medium">
                   <DollarSign className="w-3 h-3" />
                   R$ {job.salaryRange.min.toLocaleString("pt-BR")} - R${" "}
@@ -415,10 +458,15 @@ export default function JobCard({
             variant="ghost"
             size="sm"
             onClick={handleApplyClick}
-            className="flex-1 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            disabled={hasApplied || checkingApplication}
+            className="flex-1 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Briefcase className="w-4 h-4 mr-1.5" />
-            Candidatar-se
+            {checkingApplication
+              ? "Verificando..."
+              : hasApplied
+              ? "Você já se candidatou"
+              : "Candidatar-se"}
           </Button>
           <Button
             variant="ghost"
@@ -435,14 +483,6 @@ export default function JobCard({
         </div>
       </div>
 
-      <ApplyJobModal
-        open={showApplyModal}
-        onOpenChange={setShowApplyModal}
-        jobId={job._id}
-        jobTitle={job.title}
-        companyName={job.companyId.name}
-        onApplySuccess={handleApplySuccess}
-      />
     </div>
   );
 }

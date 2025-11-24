@@ -6,6 +6,8 @@ import Application from "@/models/Application";
 import Company from "@/models/Company";
 import Vacancy from "@/models/Vacancy";
 import Notification from "@/models/Notification";
+import User from "@/models/User";
+import Profile from "@/models/Profile";
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +20,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { jobId, coverLetter, resumeUrl } = await request.json();
+    const {
+      jobId,
+      coverLetter,
+      resumeUrl,
+      candidateName,
+      candidateEmail,
+      candidatePhone,
+      additionalInfo,
+    } = await request.json();
 
     if (!jobId) {
       return NextResponse.json(
@@ -51,11 +61,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Buscar dados do usuário e perfil para preencher automaticamente
+    const user = await User.findById(session.user.id).lean();
+    const profile = await Profile.findOne({ userId: session.user.id }).lean();
+
+    // Preparar dados do candidato (usar dados fornecidos ou do perfil/usuário)
+    const finalCandidateName =
+      candidateName || user?.name || session.user.name || "";
+    const finalCandidateEmail =
+      candidateEmail || user?.email || session.user.email || "";
+    const finalCandidatePhone =
+      candidatePhone || profile?.contactInfo?.phone || "";
+
+    // Criar snapshot do perfil profissional
+    const profileSnapshot = profile
+      ? {
+          headline: profile.headline || undefined,
+          location: profile.location || undefined,
+          currentTitle: profile.currentTitle || undefined,
+          currentCompany: profile.currentCompany || undefined,
+          skills: profile.skills || undefined,
+          experience: profile.experience || undefined,
+          education: profile.education || undefined,
+        }
+      : undefined;
+
     const application = new Application({
       jobId,
       candidateId: session.user.id,
       coverLetter: coverLetter || undefined,
       resumeUrl: resumeUrl || undefined,
+      candidateName: finalCandidateName || undefined,
+      candidateEmail: finalCandidateEmail || undefined,
+      candidatePhone: finalCandidatePhone || undefined,
+      additionalInfo: additionalInfo || undefined,
+      profileSnapshot: profileSnapshot || undefined,
     });
 
     await application.save();

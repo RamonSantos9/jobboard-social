@@ -6,6 +6,33 @@ export interface IApplication extends Document {
   candidateId: mongoose.Types.ObjectId;
   resumeUrl?: string;
   coverLetter?: string;
+  candidateName?: string;
+  candidateEmail?: string;
+  candidatePhone?: string;
+  additionalInfo?: string;
+  profileSnapshot?: {
+    headline?: string;
+    location?: string;
+    currentTitle?: string;
+    currentCompany?: string;
+    skills?: string[];
+    experience?: Array<{
+      title: string;
+      company: string;
+      startDate: Date;
+      endDate?: Date;
+      current: boolean;
+      description?: string;
+    }>;
+    education?: Array<{
+      institution: string;
+      degree: string;
+      fieldOfStudy: string;
+      startDate: Date;
+      endDate?: Date;
+      current: boolean;
+    }>;
+  };
   status: "pending" | "reviewed" | "accepted" | "rejected";
   notes?: string;
   appliedAt: Date;
@@ -32,6 +59,40 @@ const ApplicationSchema = new Schema<IApplication>(
       maxlength: [
         1000,
         "Carta de apresentação deve ter no máximo 1000 caracteres",
+      ],
+    },
+    candidateName: String,
+    candidateEmail: String,
+    candidatePhone: String,
+    additionalInfo: {
+      type: String,
+      maxlength: [2000, "Informações adicionais devem ter no máximo 2000 caracteres"],
+    },
+    profileSnapshot: {
+      headline: String,
+      location: String,
+      currentTitle: String,
+      currentCompany: String,
+      skills: [String],
+      experience: [
+        {
+          title: String,
+          company: String,
+          startDate: Date,
+          endDate: Date,
+          current: Boolean,
+          description: String,
+        },
+      ],
+      education: [
+        {
+          institution: String,
+          degree: String,
+          fieldOfStudy: String,
+          startDate: Date,
+          endDate: Date,
+          current: Boolean,
+        },
       ],
     },
     status: {

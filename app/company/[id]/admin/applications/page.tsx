@@ -11,7 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Briefcase, Calendar, User, Filter } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Briefcase, Calendar, User, Filter, Mail, Phone, FileText, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import {
   Select,
@@ -126,22 +127,30 @@ function CompanyApplicationsContent() {
                                   </Avatar>
                                   <div className="flex-1">
                                     <div className="flex items-start justify-between">
-                                      <div>
+                                      <div className="flex-1">
                                         <h3 className="text-lg font-semibold text-gray-900">
-                                          {application.candidateId?.name || "Candidato"}
+                                          {application.candidateName || application.candidateId?.name || "Candidato"}
                                         </h3>
                                         <p className="text-sm text-gray-600 mt-1">
                                           {application.jobId?.title || "Vaga"}
                                         </p>
-                                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                        <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-gray-500">
                                           <span className="flex items-center gap-1">
                                             <Calendar className="h-3 w-3" />
                                             {new Date(application.createdAt).toLocaleDateString("pt-BR")}
                                           </span>
-                                          <span className="flex items-center gap-1">
-                                            <User className="h-3 w-3" />
-                                            {application.candidateId?.email}
-                                          </span>
+                                          {(application.candidateEmail || application.candidateId?.email) && (
+                                            <span className="flex items-center gap-1">
+                                              <Mail className="h-3 w-3" />
+                                              {application.candidateEmail || application.candidateId?.email}
+                                            </span>
+                                          )}
+                                          {application.candidatePhone && (
+                                            <span className="flex items-center gap-1">
+                                              <Phone className="h-3 w-3" />
+                                              {application.candidatePhone}
+                                            </span>
+                                          )}
                                         </div>
                                       </div>
                                       <Badge
@@ -160,12 +169,75 @@ function CompanyApplicationsContent() {
                                           : "Pendente"}
                                       </Badge>
                                     </div>
+
+                                    <Separator className="my-3" />
                                     
-                                    {application.coverLetter && (
-                                      <p className="text-sm text-gray-600 mt-3 line-clamp-2">
-                                        {application.coverLetter}
-                                      </p>
-                                    )}
+                                    {/* Informações Adicionais */}
+                                    <div className="space-y-2">
+                                      {application.coverLetter && (
+                                        <div>
+                                          <p className="text-xs font-medium text-gray-700 mb-1">Carta de Apresentação:</p>
+                                          <p className="text-sm text-gray-600 line-clamp-2">
+                                            {application.coverLetter}
+                                          </p>
+                                        </div>
+                                      )}
+
+                                      {application.additionalInfo && (
+                                        <div>
+                                          <p className="text-xs font-medium text-gray-700 mb-1">Informações Adicionais:</p>
+                                          <p className="text-sm text-gray-600 line-clamp-2">
+                                            {application.additionalInfo}
+                                          </p>
+                                        </div>
+                                      )}
+
+                                      {application.resumeUrl && (
+                                        <div>
+                                          <p className="text-xs font-medium text-gray-700 mb-1">Currículo:</p>
+                                          <a
+                                            href={application.resumeUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                                          >
+                                            <FileText className="h-3 w-3" />
+                                            Ver currículo PDF
+                                            <ExternalLink className="h-3 w-3" />
+                                          </a>
+                                        </div>
+                                      )}
+
+                                      {/* Dados Profissionais do Perfil */}
+                                      {application.profileSnapshot && (
+                                        <div className="mt-3 pt-3 border-t border-gray-100">
+                                          <p className="text-xs font-medium text-gray-700 mb-2">Dados Profissionais:</p>
+                                          <div className="space-y-1 text-xs text-gray-600">
+                                            {application.profileSnapshot.headline && (
+                                              <p><span className="font-medium">Título:</span> {application.profileSnapshot.headline}</p>
+                                            )}
+                                            {application.profileSnapshot.currentTitle && application.profileSnapshot.currentCompany && (
+                                              <p>
+                                                <span className="font-medium">Cargo Atual:</span> {application.profileSnapshot.currentTitle} 
+                                                {application.profileSnapshot.currentCompany && ` na ${application.profileSnapshot.currentCompany}`}
+                                              </p>
+                                            )}
+                                            {application.profileSnapshot.location && (
+                                              <p><span className="font-medium">Localização:</span> {application.profileSnapshot.location}</p>
+                                            )}
+                                            {application.profileSnapshot.skills && application.profileSnapshot.skills.length > 0 && (
+                                              <div>
+                                                <span className="font-medium">Habilidades:</span>{" "}
+                                                <span className="text-gray-500">
+                                                  {application.profileSnapshot.skills.slice(0, 5).join(", ")}
+                                                  {application.profileSnapshot.skills.length > 5 && "..."}
+                                                </span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
 
                                     <div className="flex items-center gap-2 mt-4">
                                       <Button variant="outline" size="sm" asChild>
@@ -174,8 +246,8 @@ function CompanyApplicationsContent() {
                                         </Link>
                                       </Button>
                                       <Button variant="outline" size="sm" asChild>
-                                        <Link href={`/applications/${application._id}`}>
-                                          Ver Detalhes
+                                        <Link href={`/company/${companyId}/admin/applications/${application._id}`}>
+                                          Ver Detalhes Completos
                                         </Link>
                                       </Button>
                                     </div>

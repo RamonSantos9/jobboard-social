@@ -10,7 +10,10 @@ export async function POST(request: NextRequest) {
       body = await request.json();
     } catch (parseError) {
       return NextResponse.json(
-        { error: "INVALID_REQUEST", message: "Formato de requisição inválido." },
+        {
+          error: "INVALID_REQUEST",
+          message: "Formato de requisição inválido.",
+        },
         { status: 400 }
       );
     }
@@ -20,7 +23,10 @@ export async function POST(request: NextRequest) {
     // Validar dados obrigatórios
     if (!password) {
       return NextResponse.json(
-        { error: "EMAIL_PASSWORD_REQUIRED", message: "Por favor, preencha email/username e senha." },
+        {
+          error: "EMAIL_PASSWORD_REQUIRED",
+          message: "Por favor, preencha email/username e senha.",
+        },
         { status: 400 }
       );
     }
@@ -29,7 +35,10 @@ export async function POST(request: NextRequest) {
     if (accountType === "company") {
       if (!username && !email) {
         return NextResponse.json(
-          { error: "USERNAME_PASSWORD_REQUIRED", message: "Por favor, preencha username e senha." },
+          {
+            error: "USERNAME_PASSWORD_REQUIRED",
+            message: "Por favor, preencha username e senha.",
+          },
           { status: 400 }
         );
       }
@@ -37,7 +46,10 @@ export async function POST(request: NextRequest) {
       // Para login de usuário, email é obrigatório
       if (!email) {
         return NextResponse.json(
-          { error: "EMAIL_PASSWORD_REQUIRED", message: "Por favor, preencha email e senha." },
+          {
+            error: "EMAIL_PASSWORD_REQUIRED",
+            message: "Por favor, preencha email e senha.",
+          },
           { status: 400 }
         );
       }
@@ -67,17 +79,20 @@ export async function POST(request: NextRequest) {
     // Se for login de empresa e tiver username, buscar por username
     if (accountType === "company" && username) {
       const normalizedUsername = username.toLowerCase().trim();
-      
+
       try {
-        const company = await CompanyModel.findOne({ username: normalizedUsername });
-        
+        const company = await CompanyModel.findOne({
+          username: normalizedUsername,
+        });
+
         if (company) {
           // Verificar se a conta está ativa
           if (!company.isActive) {
             return NextResponse.json(
               {
                 error: "ACCOUNT_INACTIVE",
-                message: "Sua conta está inativa. Entre em contato com o suporte para mais informações.",
+                message:
+                  "Sua conta está inativa. Entre em contato com o suporte para mais informações.",
               },
               { status: 403 }
             );
@@ -89,7 +104,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
               {
                 error: "INVALID_PASSWORD",
-                message: "Senha incorreta. Tente novamente ou entre em contato com o suporte.",
+                message:
+                  "Senha incorreta. Tente novamente ou entre em contato com o suporte.",
               },
               { status: 401 }
             );
@@ -108,27 +124,33 @@ export async function POST(request: NextRequest) {
         // Se não encontrou por username, tentar por email se fornecido
         if (email) {
           const normalizedEmail = email.toLowerCase().trim();
-          const companyByEmail = await CompanyModel.findOne({ email: normalizedEmail });
-          
+          const companyByEmail = await CompanyModel.findOne({
+            email: normalizedEmail,
+          });
+
           if (companyByEmail) {
             // Verificar se a conta está ativa
             if (!companyByEmail.isActive) {
               return NextResponse.json(
                 {
                   error: "ACCOUNT_INACTIVE",
-                  message: "Sua conta está inativa. Entre em contato com o suporte para mais informações.",
+                  message:
+                    "Sua conta está inativa. Entre em contato com o suporte para mais informações.",
                 },
                 { status: 403 }
               );
             }
 
             // Verificar senha
-            const isPasswordValid = await companyByEmail.comparePassword(password);
+            const isPasswordValid = await companyByEmail.comparePassword(
+              password
+            );
             if (!isPasswordValid) {
               return NextResponse.json(
                 {
                   error: "INVALID_PASSWORD",
-                  message: "Senha incorreta. Tente novamente ou entre em contato com o suporte.",
+                  message:
+                    "Senha incorreta. Tente novamente ou entre em contato com o suporte.",
                 },
                 { status: 401 }
               );
@@ -148,21 +170,24 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: "USERNAME_NOT_FOUND",
-            message: "Username não encontrado. Verifique se o username está correto.",
+            message:
+              "Username não encontrado. Verifique se o username está correto.",
           },
           { status: 404 }
         );
       } catch (findError: any) {
-        const isConnectionError = 
+        const isConnectionError =
           findError?.message?.includes("connection") ||
           findError?.message?.includes("timeout") ||
           findError?.message?.includes("Mongo") ||
           findError?.name?.includes("Mongo");
-        
+
         return NextResponse.json(
           {
-            error: isConnectionError ? "DATABASE_CONNECTION_ERROR" : "DATABASE_QUERY_ERROR",
-            message: isConnectionError 
+            error: isConnectionError
+              ? "DATABASE_CONNECTION_ERROR"
+              : "DATABASE_QUERY_ERROR",
+            message: isConnectionError
               ? "Erro de conexão com o banco de dados. Tente novamente mais tarde."
               : "Erro ao buscar dados. Tente novamente mais tarde.",
           },
@@ -174,7 +199,10 @@ export async function POST(request: NextRequest) {
     // Login de usuário ou empresa por email (compatibilidade)
     if (!email) {
       return NextResponse.json(
-        { error: "EMAIL_PASSWORD_REQUIRED", message: "Por favor, preencha email e senha." },
+        {
+          error: "EMAIL_PASSWORD_REQUIRED",
+          message: "Por favor, preencha email e senha.",
+        },
         { status: 400 }
       );
     }
@@ -191,7 +219,7 @@ export async function POST(request: NextRequest) {
       ]);
     } catch (findError: any) {
       // Verificar se é um erro de conexão
-      const isConnectionError = 
+      const isConnectionError =
         findError?.message?.includes("connection") ||
         findError?.message?.includes("timeout") ||
         findError?.message?.includes("Mongo") ||
@@ -199,11 +227,13 @@ export async function POST(request: NextRequest) {
         findError?.codeName?.includes("Mongo") ||
         findError?.codeName === "MongooseServerSelectionError" ||
         findError?.codeName === "MongoServerSelectionError";
-      
+
       return NextResponse.json(
         {
-          error: isConnectionError ? "DATABASE_CONNECTION_ERROR" : "DATABASE_QUERY_ERROR",
-          message: isConnectionError 
+          error: isConnectionError
+            ? "DATABASE_CONNECTION_ERROR"
+            : "DATABASE_QUERY_ERROR",
+          message: isConnectionError
             ? "Erro de conexão com o banco de dados. Tente novamente mais tarde."
             : "Erro ao buscar dados. Tente novamente mais tarde.",
         },
@@ -218,7 +248,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: "ACCOUNT_INACTIVE",
-            message: "Sua conta está inativa. Entre em contato com o suporte para mais informações.",
+            message:
+              "Sua conta está inativa. Entre em contato com o suporte para mais informações.",
           },
           { status: 403 }
         );
@@ -229,7 +260,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: "ACCOUNT_SUSPENDED",
-            message: "Sua conta foi suspensa. Entre em contato com o suporte para mais informações.",
+            message:
+              "Sua conta foi suspensa. Entre em contato com o suporte para mais informações.",
           },
           { status: 403 }
         );
@@ -239,7 +271,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: "ACCOUNT_PENDING",
-            message: "Sua conta está pendente de aprovação. Aguarde a ativação ou entre em contato com o suporte.",
+            message:
+              "Sua conta está pendente de aprovação. Aguarde a ativação ou entre em contato com o suporte.",
           },
           { status: 403 }
         );
@@ -250,7 +283,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: "AUTH_ERROR",
-            message: "Erro interno ao verificar senha. Tente novamente mais tarde.",
+            message:
+              "Erro interno ao verificar senha. Tente novamente mais tarde.",
           },
           { status: 500 }
         );
@@ -263,7 +297,8 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             {
               error: "AUTH_ERROR",
-              message: "Erro interno ao verificar senha. Tente novamente mais tarde.",
+              message:
+                "Erro interno ao verificar senha. Tente novamente mais tarde.",
             },
             { status: 500 }
           );
@@ -306,7 +341,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: "ACCOUNT_INACTIVE",
-            message: "Sua conta está inativa. Entre em contato com o suporte para mais informações.",
+            message:
+              "Sua conta está inativa. Entre em contato com o suporte para mais informações.",
           },
           { status: 403 }
         );
@@ -317,7 +353,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: "AUTH_ERROR",
-            message: "Erro interno ao verificar senha. Tente novamente mais tarde.",
+            message:
+              "Erro interno ao verificar senha. Tente novamente mais tarde.",
           },
           { status: 500 }
         );
@@ -330,7 +367,8 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             {
               error: "AUTH_ERROR",
-              message: "Erro interno ao verificar senha. Tente novamente mais tarde.",
+              message:
+                "Erro interno ao verificar senha. Tente novamente mais tarde.",
             },
             { status: 500 }
           );
@@ -370,7 +408,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: "EMAIL_NOT_FOUND",
-        message: "Email não encontrado. Verifique se o email está correto ou crie uma conta.",
+        message:
+          "Email não encontrado. Verifique se o email está correto ou crie uma conta.",
       },
       { status: 404 }
     );
@@ -387,7 +426,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "DATABASE_CONNECTION_ERROR",
-          message: "Erro de conexão com o servidor. Tente novamente mais tarde.",
+          message:
+            "Erro de conexão com o servidor. Tente novamente mais tarde.",
         },
         { status: 500 }
       );
@@ -396,7 +436,8 @@ export async function POST(request: NextRequest) {
     // Verificar se é um erro de modelo não encontrado
     if (
       error instanceof Error &&
-      (error.message.includes("Model") || error.message.includes("is not a function"))
+      (error.message.includes("Model") ||
+        error.message.includes("is not a function"))
     ) {
       return NextResponse.json(
         {
@@ -411,7 +452,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && (error as any).details) {
       const errorDetails = (error as any).details;
       const errorType = errorDetails.type || "UNKNOWN_ERROR";
-      
+
       // Mapear código de erro baseado no tipo
       let errorCode = "DATABASE_CONNECTION_ERROR";
       switch (errorType) {
@@ -439,11 +480,13 @@ export async function POST(request: NextRequest) {
           errorCode = "DATABASE_SSL_ERROR";
           break;
       }
-      
+
       return NextResponse.json(
         {
           error: errorCode,
-          message: errorDetails.message || "Erro de conexão com o banco de dados. Tente novamente mais tarde.",
+          message:
+            errorDetails.message ||
+            "Erro de conexão com o banco de dados. Tente novamente mais tarde.",
           type: errorType,
         },
         { status: 500 }
@@ -451,10 +494,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Erro genérico
-    const errorMessage = error instanceof Error 
-      ? error.message 
-      : typeof error === "string" 
-        ? error 
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+        ? error
         : "Erro ao processar login. Tente novamente mais tarde.";
 
     return NextResponse.json(
@@ -466,4 +510,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

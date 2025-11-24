@@ -56,6 +56,8 @@ export default function VacancyDetailPage() {
   const [vacancy, setVacancy] = useState<VacancyDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasApplied, setHasApplied] = useState(false);
+  const [checkingApplication, setCheckingApplication] = useState(true);
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -82,30 +84,40 @@ export default function VacancyDetailPage() {
     }
   }, [vacancyId]);
 
-  const handleApply = async () => {
+  useEffect(() => {
+    const checkApplication = async () => {
+      if (!session || !vacancyId) {
+        setCheckingApplication(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/applications/check?jobId=${vacancyId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setHasApplied(data.hasApplied);
+        }
+      } catch (err) {
+        console.error("Error checking application:", err);
+      } finally {
+        setCheckingApplication(false);
+      }
+    };
+
+    checkApplication();
+  }, [session, vacancyId]);
+
+  const handleApply = () => {
     if (!session) {
       router.push("/feed/auth/login");
       return;
     }
 
-    try {
-      const response = await fetch("/api/applications", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ jobId: vacancyId }),
-      });
-
-      if (response.ok) {
-        toast.success("Candidatura enviada com sucesso!");
-      } else {
-        const data = await response.json();
-        toast.error(data.error || "Erro ao enviar candidatura");
-      }
-    } catch (err) {
-      toast.error("Erro ao enviar candidatura");
+    if (hasApplied) {
+      return;
     }
+
+    router.push(`/jobs/${vacancyId}/apply`);
   };
 
   return (
@@ -162,11 +174,10 @@ export default function VacancyDetailPage() {
                       Publicado em {new Date(vacancy.createdAt).toLocaleDateString("pt-BR")}
                     </span>
                   </div>
-                  {vacancy.salaryRange && (
+                  {vacancy.salaryRange && vacancy.salaryRange.min != null && vacancy.salaryRange.max != null && (
                     <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
                       <DollarSign className="w-4 h-4" />
-                      R$ {vacancy.salaryRange.min.toLocaleString()} - R$
-                      {vacancy.salaryRange.max.toLocaleString()}
+                      R$ {vacancy.salaryRange.min.toLocaleString("pt-BR")} - R$ {vacancy.salaryRange.max.toLocaleString("pt-BR")}
                     </div>
                   )}
                   <div className="flex flex-wrap gap-2">
@@ -178,9 +189,17 @@ export default function VacancyDetailPage() {
                     </Badge>
                   </div>
                   <div className="flex gap-3">
-                    <Button className="gap-2" onClick={handleApply}>
+                    <Button
+                      className="gap-2"
+                      onClick={handleApply}
+                      disabled={hasApplied || checkingApplication}
+                    >
                       <Briefcase className="w-4 h-4" />
-                      Candidatar-se agora
+                      {checkingApplication
+                        ? "Verificando..."
+                        : hasApplied
+                        ? "Você já se candidatou"
+                        : "Candidatar-se agora"}
                     </Button>
                     <Button variant="outline" className="border-gray-300">
                       Salvar vaga
