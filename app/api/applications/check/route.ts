@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       hasApplied: !!existingApplication,
-      applicationId: existingApplication?._id?.toString() || null,
+      applicationId: (existingApplication as any)?._id?.toString() || null,
     });
   } catch (error) {
     console.error("Check application error:", error);

@@ -59,10 +59,10 @@ export async function GET(
     }
 
     // Buscar candidatura
-    const application = await Application.findById(applicationId)
+    const application = (await Application.findById(applicationId)
       .populate("candidateId", "name email")
       .populate("jobId", "title companyId")
-      .lean();
+      .lean()) as any;
 
     if (!application) {
       return NextResponse.json(

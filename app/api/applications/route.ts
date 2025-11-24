@@ -62,8 +62,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Buscar dados do usuário e perfil para preencher automaticamente
-    const user = await User.findById(session.user.id).lean();
-    const profile = await Profile.findOne({ userId: session.user.id }).lean();
+    const user = (await User.findById(session.user.id).lean()) as any;
+    const profile = (await Profile.findOne({
+      userId: session.user.id,
+    }).lean()) as any;
 
     // Preparar dados do candidato (usar dados fornecidos ou do perfil/usuário)
     const finalCandidateName =
