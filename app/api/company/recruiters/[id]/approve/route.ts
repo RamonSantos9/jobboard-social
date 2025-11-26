@@ -78,8 +78,12 @@ export async function POST(
       await company.save();
     }
 
-    // TODO: Enviar notificação para o recrutador
-    // TODO: Enviar email de aprovação
+    // Mock notification and email
+    console.log(`[MOCK NOTIFICATION] Recruiter approved: ${recruiterUser.email}`);
+    console.log(`[MOCK EMAIL] Approval email sent to: ${recruiterUser.email}`);
+    
+    // In a real implementation, we would create a notification record here
+    // const notification = await Notification.create({ ... });
 
     return NextResponse.json({
       message: "Recrutador aprovado com sucesso",

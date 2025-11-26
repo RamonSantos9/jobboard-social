@@ -78,8 +78,12 @@ export async function POST(
     );
     await company.save();
 
-    // TODO: Enviar notificação para o recrutador
-    // TODO: Enviar email de rejeição com motivo
+    // Mock notification and email
+    console.log(`[MOCK NOTIFICATION] Recruiter rejected: ${recruiterUser.email}`);
+    console.log(`[MOCK EMAIL] Rejection email sent to: ${recruiterUser.email}. Reason: ${reason}`);
+    
+    // In a real implementation, we would create a notification record here
+    // const notification = await Notification.create({ ... });
 
     return NextResponse.json({
       message: "Solicitação de recrutador rejeitada",

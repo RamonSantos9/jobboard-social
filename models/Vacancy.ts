@@ -136,7 +136,6 @@ const VacancySchema = new Schema<IVacancy>(
       type: String,
       enum: ["draft", "published", "paused", "closed"],
       default: "published",
-      index: true,
     },
     publishedAt: {
       type: Date,

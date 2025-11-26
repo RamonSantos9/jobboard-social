@@ -35,8 +35,10 @@ export async function POST(request: Request) {
       });
     }
 
-    // TODO: Implementar envio de email de redefinição de senha
-    // Por enquanto, apenas retornar sucesso
+    // Mock email sending
+    console.log(`[MOCK EMAIL] Password reset requested for: ${normalizedEmail}`);
+    console.log(`[MOCK EMAIL] Reset link: http://localhost:3000/auth/reset-password?token=mock-token-${Date.now()}`);
+
     return NextResponse.json({
       success: true,
       message:
