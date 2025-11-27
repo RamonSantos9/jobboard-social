@@ -124,5 +124,11 @@ PostSchema.path("reactions").validate(function (reactions: any[]) {
   });
 }, "Reaction must have either userId or companyId, but not both");
 
+// Performance indexes
+PostSchema.index({ createdAt: -1 }); // Para buscar posts recentes
+PostSchema.index({ authorId: 1, createdAt: -1 }); // Para buscar posts de um autor ordenados por data
+PostSchema.index({ isJobPost: 1 }); // Para filtrar posts de vagas
+PostSchema.index({ isHighlighted: 1, createdAt: -1 }); // Para buscar posts destacados
+
 export default mongoose.models.Post ||
   mongoose.model<IPost>("Post", PostSchema);

@@ -2,13 +2,26 @@ import { performance } from "perf_hooks";
 import os from "os";
 
 // ==================== CONFIGURAÇÃO ====================
+const BASE_URL = process.env.JOBBOARD_LOAD_BASE_URL || "http://localhost:3000";
 const TARGET_URL =
-  process.env.JOBBOARD_LOAD_URL || "http://localhost:3000/api/jobs?limit=20";
+  process.env.JOBBOARD_LOAD_URL || `${BASE_URL}/api/jobs?limit=20`;
 const TOTAL_REQUESTS = Number(process.env.JOBBOARD_LOAD_TOTAL || 10_000);
 const CONCURRENT_REQUESTS = Number(
   process.env.JOBBOARD_LOAD_CONCURRENCY || 100
 );
 const WARMUP_REQUESTS = Number(process.env.JOBBOARD_LOAD_WARMUP || 100);
+const TEST_MULTIPLE_ENDPOINTS = process.env.JOBBOARD_LOAD_MULTI === "true";
+
+// Endpoints para testar (quando TEST_MULTIPLE_ENDPOINTS = true)
+const ENDPOINTS = [
+  "/api/jobs?limit=20",
+  "/api/jobs?limit=50",
+  "/api/jobs?status=published",
+  "/api/jobs?level=senior",
+  "/api/jobs?remote=true",
+  "/api/companies",
+  "/api/users",
+];
 
 // ==================== VALIDAÇÃO ====================
 if (TOTAL_REQUESTS <= 0) {

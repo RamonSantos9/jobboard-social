@@ -115,5 +115,11 @@ const ApplicationSchema = new Schema<IApplication>(
 // Compound index to prevent duplicate applications
 ApplicationSchema.index({ jobId: 1, candidateId: 1 }, { unique: true });
 
+// Performance indexes
+ApplicationSchema.index({ status: 1 }); // Para buscar por status (pending, reviewed, etc)
+ApplicationSchema.index({ appliedAt: -1 }); // Para buscar candidaturas recentes
+ApplicationSchema.index({ candidateId: 1, appliedAt: -1 }); // Para buscar candidaturas de um candidato ordenadas por data
+ApplicationSchema.index({ jobId: 1, status: 1 }); // Para buscar candidaturas de uma vaga por status
+
 export default mongoose.models.Application ||
   mongoose.model<IApplication>("Application", ApplicationSchema);

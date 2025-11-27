@@ -171,5 +171,11 @@ CompanySchema.methods.comparePassword = async function (
   return bcrypt.compare(candidatePassword, this.password);
 };
 
+// Performance indexes
+CompanySchema.index({ isVerified: 1 }); // Para buscar empresas verificadas
+CompanySchema.index({ isActive: 1 }); // Para buscar empresas ativas
+CompanySchema.index({ industry: 1 }); // Para buscar por setor
+CompanySchema.index({ isVerified: 1, isActive: 1 }); // Para buscar empresas verificadas e ativas
+
 export default mongoose.models.Company ||
   mongoose.model<ICompany>("Company", CompanySchema);

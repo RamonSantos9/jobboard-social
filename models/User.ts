@@ -126,5 +126,12 @@ UserSchema.methods.comparePassword = async function (
   return bcrypt.compare(candidatePassword, this.password);
 };
 
+// Performance indexes
+UserSchema.index({ isRecruiter: 1 }); // Para buscar recrutadores
+UserSchema.index({ status: 1 }); // Para buscar por status (active, pending, suspended)
+UserSchema.index({ role: 1 }); // Para buscar por role (user, admin)
+UserSchema.index({ isRecruiter: 1, status: 1 }); // Para buscar recrutadores ativos
+UserSchema.index({ companyId: 1 }); // Para buscar usuários de uma empresa
+
 export default mongoose.models.User ||
   mongoose.model<IUser>("User", UserSchema);

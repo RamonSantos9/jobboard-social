@@ -160,6 +160,13 @@ const VacancySchema = new Schema<IVacancy>(
 VacancySchema.index({ createdAt: -1 });
 VacancySchema.index({ companyId: 1, status: 1, createdAt: -1 });
 
+// Performance indexes adicionais
+VacancySchema.index({ status: 1, createdAt: -1 }); // Para buscar vagas publicadas ordenadas por data
+VacancySchema.index({ status: 1, remote: 1 }); // Para buscar vagas remotas publicadas
+VacancySchema.index({ status: 1, level: 1, createdAt: -1 }); // Para buscar vagas por nível
+VacancySchema.index({ status: 1, type: 1 }); // Para buscar por tipo de contrato
+VacancySchema.index({ status: 1, category: 1 }); // Para buscar por categoria
+
 VacancySchema.pre<IVacancy>("save", function (next) {
   if (
     this.isModified("level") &&

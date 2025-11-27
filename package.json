@@ -6,7 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:performance": "tsx scripts/performance-test.ts",
+    "create-indexes": "tsx scripts/create-indexes.ts",
+    "load-test": "tsx scripts/load-test.ts",
+    "load-test:db": "tsx scripts/load-test-database.ts",
+    "stress-test:db": "tsx scripts/stress-test-database.ts",
+    "analyze-db": "tsx scripts/analyze-db-performance.ts",
+    "check-data": "tsx scripts/check-data-distribution.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -76,12 +83,14 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.17",
-    "@types/node": "^22",
+    "@types/node": "^22.19.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "glob": "^11.0.3",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "tw-animate-css": "1.3.3",
     "typescript": "^5"
   }
