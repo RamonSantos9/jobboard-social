@@ -16,10 +16,18 @@ import {
   Clock,
   Sparkles,
   CheckCircle2,
+  MessageCircle,
+  Share2,
+  Send,
 } from "lucide-react";
 import LinkedInIcon from "./LinkedInIcon";
 import { toast } from "sonner";
 import { Bookmark, BookmarkCheck } from "lucide-react";
+import ReactionButton from "./ReactionButton";
+import CommentSection from "./CommentSection";
+import ShareModal from "./ShareModal";
+import SendMessagePopup from "./SendMessagePopup";
+import type { ReactionType } from "@/models/Post";
 
 interface JobCardProps {
   job: {
@@ -103,6 +111,23 @@ export default function JobCard({
   const viewTracked = useRef(false);
   const viewStartTime = useRef<number | null>(null);
 
+  // Estados para interações sociais
+  const [currentReaction, setCurrentReaction] = useState<ReactionType | null>(
+    null
+  );
+  const [reactionsCount, setReactionsCount] = useState({
+    like: 0,
+    celebrate: 0,
+    support: 0,
+    interesting: 0,
+    funny: 0,
+    love: 0,
+  });
+  const [commentsCount, setCommentsCount] = useState(0);
+  const [showComments, setShowComments] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showSendMessage, setShowSendMessage] = useState(false);
+
   const formattedCreatedAt = useMemo(
     () => formatRelativeTime(job.createdAt),
     [job.createdAt]
@@ -138,7 +163,9 @@ export default function JobCard({
     setCheckingApplication(true);
     const checkApplication = async () => {
       try {
-        const response = await fetch(`/api/applications/check?jobId=${job._id}`);
+        const response = await fetch(
+          `/api/applications/check?jobId=${job._id}`
+        );
         if (response.ok) {
           const data = await response.json();
           setHasApplied(data.hasApplied);
@@ -178,7 +205,9 @@ export default function JobCard({
             // Atualizar duração periodicamente
             const interval = setInterval(() => {
               if (viewStartTime.current) {
-                const duration = Math.floor((Date.now() - viewStartTime.current) / 1000);
+                const duration = Math.floor(
+                  (Date.now() - viewStartTime.current) / 1000
+                );
                 if (duration > 0 && duration % 5 === 0) {
                   // Atualizar a cada 5 segundos
                   fetch("/api/interactions", {
@@ -315,6 +344,17 @@ export default function JobCard({
     onApplySuccess?.();
   };
 
+  // Handlers para interações sociais
+  const handleReaction = async (
+    jobId: string,
+    reactionType: ReactionType | null
+  ) => {
+    // TODO: Implementar API de reações para jobs
+    // Por enquanto, apenas mostra mensagem
+    toast.info("Reações para vagas em breve!");
+    return;
+  };
+
   const highlightSkills = job.skills?.slice(0, 4) || [];
 
   return (
@@ -331,7 +371,10 @@ export default function JobCard({
                   </div>
                 ) : (
                   <>
-                    <AvatarImage src={job.companyId.logoUrl} alt={job.companyId.name} />
+                    <AvatarImage
+                      src={job.companyId.logoUrl}
+                      alt={job.companyId.name}
+                    />
                     <AvatarFallback className="bg-gray-100 text-gray-600 text-xs">
                       {job.companyId.name.charAt(0).toUpperCase()}
                     </AvatarFallback>
@@ -352,7 +395,11 @@ export default function JobCard({
               </p>
               <p className="text-xs text-black leading-tight flex items-center gap-1">
                 {formattedCreatedAt} •{" "}
-                <LinkedInIcon id="globe-small" size={16} className="text-black" />
+                <LinkedInIcon
+                  id="globe-small"
+                  size={16}
+                  className="text-black"
+                />
               </p>
             </div>
           </div>
@@ -380,9 +427,7 @@ export default function JobCard({
       <div className="px-4 pb-4">
         <div className="mb-3">
           <div className="flex items-center gap-2 flex-wrap mb-2">
-            <h3 className="font-semibold text-base text-black">
-              {job.title}
-            </h3>
+            <h3 className="font-semibold text-base text-black">{job.title}</h3>
             {hasApplied && (
               <Badge
                 variant="secondary"
@@ -472,7 +517,6 @@ export default function JobCard({
             variant="ghost"
             size="sm"
             asChild
-            onClick={handleClick}
             className="flex-1 text-sm font-medium"
           >
             <Link href={`/jobs/${job._id}`}>
@@ -481,8 +525,156 @@ export default function JobCard({
             </Link>
           </Button>
         </div>
+
+        {/* Separator */}
+        <div className="border-b border-gray-200 mt-3 mb-2"></div>
+
+        {/* Engagement Stats */}
+        <div className="flex justify-between items-center text-xs text-gray-500 pb-2">
+          <div className="flex items-center gap-2">
+            {(() => {
+              const activeReactions = [
+                { type: "like" as const, count: reactionsCount.like },
+                { type: "love" as const, count: reactionsCount.love },
+                { type: "celebrate" as const, count: reactionsCount.celebrate },
+              ].filter((r) => r.count > 0);
+
+              const totalReactions = activeReactions.reduce(
+                (sum, r) => sum + r.count,
+                0
+              );
+
+              if (totalReactions === 0) return null;
+
+              return (
+                <div className="flex items-center gap-2">
+                  {/* Ícones de reação sobrepostos */}
+                  <div className="flex items-center -space-x-2">
+                    {activeReactions.map((reaction, index) => {
+                      const iconMap = {
+                        like: "/images/icons/like.svg",
+                        love: "/images/icons/amei.svg",
+                        celebrate: "/images/icons/parabens.svg",
+                      };
+                      const bgColorMap = {
+                        like: "#378fe9",
+                        love: "#df704d",
+                        celebrate: "#6dae4f",
+                      };
+
+                      return (
+                        <div
+                          key={`reaction-${reaction.type}`}
+                          className="w-5 h-5 rounded-full flex items-center justify-center border-2 border-white relative"
+                          style={{
+                            backgroundColor: bgColorMap[reaction.type],
+                            zIndex: activeReactions.length - index,
+                          }}
+                        >
+                          <img
+                            src={iconMap[reaction.type]}
+                            alt={reaction.type}
+                            className="w-3 h-3"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Contagem total */}
+                  <span className="text-black font-medium ml-1">
+                    {totalReactions}
+                  </span>
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="text-black flex items-center gap-2">
+            <span className="hover:underline cursor-pointer hover:text-black">
+              {commentsCount} comentários
+            </span>
+          </div>
+        </div>
+
+        {/* Separator */}
+        <div className="border-b mb-2"></div>
+
+        {/* Action Buttons - Social Interactions */}
+        <div className="flex justify-between items-center text-black">
+          <ReactionButton
+            postId={job._id}
+            currentReaction={currentReaction}
+            reactionsCount={Object.values(reactionsCount).reduce(
+              (a, b) => a + b,
+              0
+            )}
+            onReaction={handleReaction}
+          />
+          <button
+            onClick={() => {
+              setShowComments(!showComments);
+              // Registrar interação de comentário quando abre
+              if (!showComments && session?.user) {
+                fetch("/api/interactions", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    itemType: "job",
+                    itemId: job._id,
+                    interactionType: "comment",
+                  }),
+                }).catch(() => {});
+              }
+            }}
+            className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors flex-1 justify-center"
+          >
+            <MessageCircle className="w-5 h-5" />
+            <span className="text-sm font-medium">Comentar</span>
+          </button>
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors flex-1 justify-center"
+          >
+            <Share2 className="w-5 h-5" />
+            <span className="text-sm font-medium">Compartilhar</span>
+          </button>
+          <button
+            onClick={() => setShowSendMessage(true)}
+            className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors flex-1 justify-center"
+          >
+            <Send className="w-5 h-5" />
+            <span className="text-sm font-medium">Enviar</span>
+          </button>
+        </div>
       </div>
 
+      {/* Comment Section */}
+      {showComments && (
+        <CommentSection postId={job._id} isExpanded={showComments} />
+      )}
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        post={{
+          _id: job._id,
+          content: job.description,
+          companyId: job.companyId,
+        }}
+      />
+
+      {/* Send Message Popup */}
+      <SendMessagePopup
+        isOpen={showSendMessage}
+        onClose={() => setShowSendMessage(false)}
+        post={{
+          _id: job._id,
+          content: job.description,
+          companyId: job.companyId,
+        }}
+      />
     </div>
   );
 }

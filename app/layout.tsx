@@ -23,8 +23,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" className={`${sora.variable} overflow-x-hidden`}>
-      <body className={`${sora.className} font-sora overflow-x-hidden`}>
+    <html
+      lang="pt-BR"
+      className={`${sora.variable} overflow-x-hidden`}
+      suppressHydrationWarning
+    >
+      <body
+        className={`${sora.className} font-sora overflow-x-hidden`}
+        suppressHydrationWarning
+      >
         {/* LinkedIn Icons Sprite */}
         <svg
           role="none"

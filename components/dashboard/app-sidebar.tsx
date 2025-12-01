@@ -38,14 +38,7 @@ const getNavData = (
     email: user?.email || "usuario@exemplo.com",
     avatar: user?.photoUrl,
   },
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: IconDashboard,
-      isActive: pathname === "/dashboard",
-    },
-  ],
+  navMain: [],
   navSecondary: [
     {
       title: "Obter Ajuda",
@@ -58,23 +51,7 @@ const getNavData = (
       icon: IconSearch,
     },
   ],
-  documents: [
-    {
-      name: "Minhas Candidaturas",
-      url: "/applications",
-      icon: IconCheck,
-    },
-    {
-      name: "Gerenciar Vagas",
-      url: "/jobs",
-      icon: IconBriefcase,
-    },
-    {
-      name: "Relatórios",
-      url: "/reports",
-      icon: IconReport,
-    },
-  ],
+  documents: [],
 });
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -92,8 +69,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     sidebarTitle?: string;
   } | null>(null);
 
-  const isCompanyDashboard = pathname?.startsWith("/company/") && pathname?.includes("/admin");
-  const companyId = isCompanyDashboard ? params?.id as string : null;
+  const isCompanyDashboard =
+    pathname?.startsWith("/company/") && pathname?.includes("/admin");
+  const companyId = isCompanyDashboard ? (params?.id as string) : null;
 
   React.useEffect(() => {
     const fetchProfile = async () => {
@@ -150,13 +128,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const data = getNavData(userData, pathname);
 
   // Determinar título do sidebar
-  const sidebarTitle = companyData?.sidebarTitle || companyData?.name || "JobBoard Social";
-  const displayTitle = sidebarTitle.length > 20 
-    ? `${sidebarTitle.substring(0, 20)}...` 
-    : sidebarTitle;
+  const sidebarTitle =
+    companyData?.sidebarTitle || companyData?.name || "JobBoard Social";
+  const displayTitle =
+    sidebarTitle.length > 20
+      ? `${sidebarTitle.substring(0, 20)}...`
+      : sidebarTitle;
 
   return (
-    <Sidebar collapsible="icon" {...props} className="border-r border-border">
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -166,15 +146,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href={isCompanyDashboard ? `/company/${companyId}` : "/"}>
                 {companyData?.logoUrl ? (
-                  <img 
-                    src={companyData.logoUrl} 
-                    alt={companyData.name || "Company"} 
-                    className="!size-5 rounded object-cover"
+                  <img
+                    src={companyData.logoUrl}
+                    alt={companyData.name || "Company"}
+                    className="!size-10 rounded object-cover"
                   />
                 ) : (
-                  <LogoIcon className="!size-5" />
+                  <LogoIcon className="!size-10" />
                 )}
-                <span className="text-base font-semibold truncate">{displayTitle}</span>
+                <span className="text-base font-semibold truncate">
+                  {displayTitle}
+                </span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -182,10 +164,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-
-        <SidebarSeparator />
-
-        <NavDocuments items={data.documents} />
 
         <SidebarSeparator />
 

@@ -164,7 +164,7 @@ export default function LeftSidebarJobs() {
           <ul className="flex flex-col">
             <li className="hover:bg-gray-100 transition-colors cursor-pointer">
               <Link
-                href="#"
+                href="/jobs/preferences"
                 className="flex items-center px-4 py-3 text-sm text-black"
               >
                 <Briefcase className="w-4 h-4 mr-2 text-black" />
@@ -173,7 +173,7 @@ export default function LeftSidebarJobs() {
             </li>
             <li className="hover:bg-gray-100 transition-colors cursor-pointer">
               <Link
-                href="#"
+                href="/jobs/my-jobs"
                 className="flex items-center px-4 py-3 text-sm text-black"
               >
                 <Bookmark className="w-4 h-4 mr-2 text-black" />
@@ -182,7 +182,7 @@ export default function LeftSidebarJobs() {
             </li>
             <li className="hover:bg-gray-100 transition-colors cursor-pointer">
               <Link
-                href="#"
+                href="/jobs/statistics"
                 className="flex items-center px-4 py-3 text-sm text-black"
               >
                 <BarChart3 className="w-4 h-4 mr-2 text-black" />

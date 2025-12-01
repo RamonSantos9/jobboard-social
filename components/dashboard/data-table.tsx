@@ -526,6 +526,14 @@ export function DataTable({
   const [allApplications, setAllApplications] = React.useState<any[]>([]);
   const [applicationsRefreshKey, setApplicationsRefreshKey] = React.useState(0);
 
+  // Estados para paginação server-side de comentários
+  const [commentsPage, setCommentsPage] = React.useState(1);
+  const [commentsPageSize, setCommentsPageSize] = React.useState(10);
+  const [commentsTotal, setCommentsTotal] = React.useState<number | null>(null);
+  const [commentsLoading, setCommentsLoading] = React.useState(false);
+  const [allComments, setAllComments] = React.useState<any[]>([]);
+  const [commentsRefreshKey, setCommentsRefreshKey] = React.useState(0);
+
   // Função para buscar usuarios com paginação server-side
   const fetchUsers = React.useCallback(async () => {
     if (mode === "admin" && activeTab === "usuarios") {
@@ -541,7 +549,7 @@ export function DataTable({
         } else {
           const errorData = await response.json().catch(() => ({}));
           console.error("Erro ao buscar usuarios:", errorData);
-          
+
           // Se for 403, redirecionar para /feed
           if (response.status === 403) {
             window.location.href = "/feed";
@@ -632,13 +640,58 @@ export function DataTable({
     }
   }, [mode, activeTab, applicationsPage, applicationsPageSize]);
 
+  // Função para buscar total de comentários
+  const fetchCommentsTotal = React.useCallback(async () => {
+    if (mode === "admin") {
+      try {
+        const response = await fetch(`/api/admin/comments?page=1&limit=1`);
+        if (response.ok) {
+          const data = await response.json();
+          setCommentsTotal(data.total || 0);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar total de comentários:", error);
+      }
+    }
+  }, [mode]);
+
+  // Função para buscar comentários com paginação server-side
+  const fetchComments = React.useCallback(async () => {
+    if (mode === "admin" && activeTab === "comentarios") {
+      setCommentsLoading(true);
+      try {
+        const response = await fetch(
+          `/api/admin/comments?page=${commentsPage}&limit=${commentsPageSize}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setAllComments(data.comments || []);
+          setCommentsTotal(data.total || 0);
+        } else {
+          console.error("Erro ao buscar comentários:", await response.json());
+        }
+      } catch (error) {
+        console.error("Erro ao buscar comentários:", error);
+      } finally {
+        setCommentsLoading(false);
+      }
+    }
+  }, [mode, activeTab, commentsPage, commentsPageSize]);
+
   // Buscar totais quando o modo admin estiver ativo ou quando a aba mudar
   React.useEffect(() => {
     if (mode === "admin") {
       fetchVacanciesTotal();
       fetchApplicationsTotal();
+      fetchCommentsTotal();
     }
-  }, [mode, activeTab, fetchVacanciesTotal, fetchApplicationsTotal]);
+  }, [
+    mode,
+    activeTab,
+    fetchVacanciesTotal,
+    fetchApplicationsTotal,
+    fetchCommentsTotal,
+  ]);
 
   // Buscar dados quando necessário
   React.useEffect(() => {
@@ -652,6 +705,10 @@ export function DataTable({
   React.useEffect(() => {
     fetchApplications();
   }, [fetchApplications, applicationsRefreshKey]);
+
+  React.useEffect(() => {
+    fetchComments();
+  }, [fetchComments, commentsRefreshKey]);
 
   const adminUsersData = React.useMemo(() => {
     const usersToUse =
@@ -737,6 +794,28 @@ export function DataTable({
     applicationsPageSize,
   ]);
 
+  // Dados formatados para comentários no modo admin
+  const adminCommentsData = React.useMemo(() => {
+    const commentsToUse =
+      mode === "admin" && activeTab === "comentarios" && allComments.length > 0
+        ? allComments
+        : [];
+
+    return commentsToUse.map((comment: any, index: number) => ({
+      id: (commentsPage - 1) * commentsPageSize + index + 1,
+      _id: comment._id,
+      empresa: comment.authorId?.name || "Usuário Desconhecido",
+      tipoSecao: "Comentário",
+      statusSecao: "Publicado",
+      meta: `${comment.likes?.length || 0} curtidas`,
+      limite: `${comment.replies?.length || 0} respostas`,
+      revisor: comment.postId?.content?.substring(0, 30) + "..." || "Post",
+      data: comment.createdAt,
+      tipo: "comentario",
+      comment: comment,
+    }));
+  }, [allComments, mode, activeTab, commentsPage, commentsPageSize]);
+
   // Handlers para criação
   const handleCreateCompany = (company: any) => {
     if (onCompanyUpdate) {
@@ -780,7 +859,6 @@ export function DataTable({
 
   return (
     <Tabs
-      defaultValue={defaultTab}
       value={activeTab}
       onValueChange={setActiveTab}
       className="w-full flex-col justify-start gap-6"
@@ -789,7 +867,7 @@ export function DataTable({
         <Label htmlFor="view-selector" className="sr-only">
           Visualização
         </Label>
-        <Select defaultValue="atividades">
+        <Select value={activeTab} onValueChange={setActiveTab}>
           <SelectTrigger
             className="flex w-fit h-8 @4xl/main:hidden"
             id="view-selector"
@@ -803,6 +881,7 @@ export function DataTable({
                 <SelectItem value="usuarios">Usuários</SelectItem>
                 <SelectItem value="vagas">Vagas</SelectItem>
                 <SelectItem value="candidaturas">Candidaturas</SelectItem>
+                <SelectItem value="comentarios">Comentários</SelectItem>
               </>
             ) : (
               <>
@@ -845,6 +924,14 @@ export function DataTable({
                   {applicationsTotal !== null
                     ? applicationsTotal
                     : adminApplicationsData.length || 0}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="comentarios">
+                Comentários{" "}
+                <Badge variant="secondary">
+                  {commentsTotal !== null
+                    ? commentsTotal
+                    : adminCommentsData.length || 0}
                 </Badge>
               </TabsTrigger>
             </>
@@ -966,6 +1053,12 @@ export function DataTable({
                   </Button>
                 }
               />
+            ) : activeTab === "comentarios" ? (
+              <Button variant="outline" size="sm" disabled>
+                <IconPlus />
+                <span className="hidden lg:inline">Novo Comentário</span>
+                <span className="lg:hidden">Novo</span>
+              </Button>
             ) : (
               <Button variant="outline" size="sm">
                 <IconPlus />
@@ -982,242 +1075,82 @@ export function DataTable({
           )}
         </div>
       </div>
-      <TabsContent
-        value="atividades"
-        className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
-      >
-        <div className="overflow-hidden rounded-lg border">
-          <DndContext
-            collisionDetection={closestCenter}
-            modifiers={[restrictToVerticalAxis]}
-            onDragEnd={handleDragEnd}
-            sensors={sensors}
-            id={sortableId}
-          >
-            <Table>
-              <TableHeader className="bg-muted sticky top-0 z-10">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      return (
-                        <TableHead key={header.id} colSpan={header.colSpan}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                {table.getRowModel().rows?.length ? (
-                  <SortableContext
-                    items={dataIds}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {table.getRowModel().rows.map((row) => (
-                      <DraggableRow key={row.id} row={row} />
-                    ))}
-                  </SortableContext>
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                      Nenhuma atividade encontrada.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </DndContext>
-        </div>
-        <div className="flex items-center justify-between px-4">
-          <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-            {table.getFilteredSelectedRowModel().rows.length} de{" "}
-            {table.getFilteredRowModel().rows.length} linhas selecionadas.
-          </div>
-          <div className="flex w-full items-center gap-8 lg:w-fit">
-            <div className="hidden items-center gap-2 lg:flex">
-              <Label htmlFor="rows-per-page" className="text-sm font-medium">
-                Linhas por página
-              </Label>
-              <Select
-                value={`${table.getState().pagination.pageSize}`}
-                onValueChange={(value) => {
-                  table.setPageSize(Number(value));
-                }}
-              >
-                <SelectTrigger className="w-20 h-8" id="rows-per-page">
-                  <SelectValue
-                    placeholder={table.getState().pagination.pageSize}
-                  />
-                </SelectTrigger>
-                <SelectContent side="top">
-                  {[10, 20, 30, 40, 50].map((pageSize) => (
-                    <SelectItem key={pageSize} value={`${pageSize}`}>
-                      {pageSize}
-                    </SelectItem>
+      {activeTab === "atividades" && (
+        <TabsContent
+          value="atividades"
+          className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
+        >
+          <div className="overflow-hidden rounded-lg border">
+            <DndContext
+              collisionDetection={closestCenter}
+              modifiers={[restrictToVerticalAxis]}
+              onDragEnd={handleDragEnd}
+              sensors={sensors}
+              id={sortableId}
+            >
+              <Table>
+                <TableHeader className="bg-muted sticky top-0 z-10">
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => {
+                        return (
+                          <TableHead key={header.id} colSpan={header.colSpan}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </TableHead>
+                        );
+                      })}
+                    </TableRow>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex w-fit items-center justify-center text-sm font-medium">
-              Página {table.getState().pagination.pageIndex + 1} de{" "}
-              {table.getPageCount()}
-            </div>
-            <div className="ml-auto flex items-center gap-2 lg:ml-0">
-              <Button
-                variant="outline"
-                className="hidden h-8 w-8 p-0 lg:flex bg-transparent"
-                onClick={() => table.setPageIndex(0)}
-                disabled={!table.getCanPreviousPage()}
-              >
-                <span className="sr-only">Ir para a primeira página</span>
-                <IconChevronsLeft />
-              </Button>
-              <Button
-                variant="outline"
-                className="size-8 bg-transparent"
-                size="icon"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                <span className="sr-only">Ir para a página anterior</span>
-                <IconChevronLeft />
-              </Button>
-              <Button
-                variant="outline"
-                className="size-8 bg-transparent"
-                size="icon"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                <span className="sr-only">Ir para a próxima página</span>
-                <IconChevronRight />
-              </Button>
-              <Button
-                variant="outline"
-                className="hidden size-8 lg:flex bg-transparent"
-                size="icon"
-                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                disabled={!table.getCanNextPage()}
-              >
-                <span className="sr-only">Ir para a última página</span>
-                <IconChevronsRight />
-              </Button>
-            </div>
+                </TableHeader>
+                <TableBody className="**:data-[slot=table-cell]:first:w-8">
+                  {table.getRowModel().rows?.length ? (
+                    <SortableContext
+                      items={dataIds}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {table.getRowModel().rows.map((row) => (
+                        <DraggableRow key={row.id} row={row} />
+                      ))}
+                    </SortableContext>
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="h-24 text-center"
+                      >
+                        Nenhuma atividade encontrada.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </DndContext>
           </div>
-        </div>
-      </TabsContent>
-      <TabsContent
-        value="vagas"
-        className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
-      >
-        <div className="text-sm text-muted-foreground">
-          {mode === "admin" && activeTab === "vagas"
-            ? `${
-                vacanciesTotal !== null ? vacanciesTotal : 0
-              } vagas encontradas`
-            : `${vacanciesData.length} vagas encontradas`}
-        </div>
-        <div className="overflow-hidden rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Empresa</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Candidaturas</TableHead>
-                <TableHead className="text-right">Visualizações</TableHead>
-                <TableHead>Responsável</TableHead>
-                {mode === "admin" && activeTab === "vagas" && (
-                  <TableHead className="text-right">Ações</TableHead>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mode === "admin" && activeTab === "vagas" ? (
-                vacanciesLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      Carregando vagas...
-                    </TableCell>
-                  </TableRow>
-                ) : adminVacanciesData.length > 0 ? (
-                  adminVacanciesData.map((row: any) => (
-                    <AdminVacancyRow
-                      key={row._id || row.id}
-                      row={row}
-                      onUpdate={handleVacancyUpdate}
-                      onRefresh={() =>
-                        setVacanciesRefreshKey((prev) => prev + 1)
-                      }
-                    />
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      Nenhuma vaga encontrada.
-                    </TableCell>
-                  </TableRow>
-                )
-              ) : vacanciesData.length > 0 ? (
-                vacanciesData.map((row: any) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.empresa}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{row.tipoSecao}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{row.statusSecao}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{row.meta}</TableCell>
-                    <TableCell className="text-right">{row.limite}</TableCell>
-                    <TableCell>{row.revisor}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
-                    Nenhuma vaga encontrada.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        {mode === "admin" && activeTab === "vagas" && (
           <div className="flex items-center justify-between px-4">
             <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-              Mostrando {adminVacanciesData.length} de{" "}
-              {vacanciesTotal !== null ? vacanciesTotal : 0} vagas
+              {table.getFilteredSelectedRowModel().rows.length} de{" "}
+              {table.getFilteredRowModel().rows.length} linhas selecionadas.
             </div>
             <div className="flex w-full items-center gap-8 lg:w-fit">
               <div className="hidden items-center gap-2 lg:flex">
-                <Label
-                  htmlFor="vacancies-rows-per-page"
-                  className="text-sm font-medium"
-                >
+                <Label htmlFor="rows-per-page" className="text-sm font-medium">
                   Linhas por página
                 </Label>
                 <Select
-                  value={`${vacanciesPageSize}`}
+                  value={`${table.getState().pagination.pageSize}`}
                   onValueChange={(value) => {
-                    setVacanciesPageSize(Number(value));
-                    setVacanciesPage(1);
+                    table.setPageSize(Number(value));
                   }}
                 >
-                  <SelectTrigger
-                    className="w-20 h-8"
-                    id="vacancies-rows-per-page"
-                  >
-                    <SelectValue placeholder={vacanciesPageSize} />
+                  <SelectTrigger className="w-20 h-8" id="rows-per-page">
+                    <SelectValue
+                      placeholder={table.getState().pagination.pageSize}
+                    />
                   </SelectTrigger>
                   <SelectContent side="top">
                     {[10, 20, 30, 40, 50].map((pageSize) => (
@@ -1229,17 +1162,15 @@ export function DataTable({
                 </Select>
               </div>
               <div className="flex w-fit items-center justify-center text-sm font-medium">
-                Página {vacanciesPage} de{" "}
-                {vacanciesTotal !== null
-                  ? Math.ceil(vacanciesTotal / vacanciesPageSize) || 1
-                  : 1}
+                Página {table.getState().pagination.pageIndex + 1} de{" "}
+                {table.getPageCount()}
               </div>
               <div className="ml-auto flex items-center gap-2 lg:ml-0">
                 <Button
                   variant="outline"
                   className="hidden h-8 w-8 p-0 lg:flex bg-transparent"
-                  onClick={() => setVacanciesPage(1)}
-                  disabled={vacanciesPage === 1 || vacanciesLoading}
+                  onClick={() => table.setPageIndex(0)}
+                  disabled={!table.getCanPreviousPage()}
                 >
                   <span className="sr-only">Ir para a primeira página</span>
                   <IconChevronsLeft />
@@ -1248,10 +1179,8 @@ export function DataTable({
                   variant="outline"
                   className="size-8 bg-transparent"
                   size="icon"
-                  onClick={() =>
-                    setVacanciesPage((prev) => Math.max(1, prev - 1))
-                  }
-                  disabled={vacanciesPage === 1 || vacanciesLoading}
+                  onClick={() => table.previousPage()}
+                  disabled={!table.getCanPreviousPage()}
                 >
                   <span className="sr-only">Ir para a página anterior</span>
                   <IconChevronLeft />
@@ -1260,22 +1189,8 @@ export function DataTable({
                   variant="outline"
                   className="size-8 bg-transparent"
                   size="icon"
-                  onClick={() =>
-                    setVacanciesPage((prev) =>
-                      Math.min(
-                        vacanciesTotal !== null
-                          ? Math.ceil(vacanciesTotal / vacanciesPageSize) || 1
-                          : 1,
-                        prev + 1
-                      )
-                    )
-                  }
-                  disabled={
-                    vacanciesTotal !== null &&
-                    (vacanciesPage >=
-                      Math.ceil(vacanciesTotal / vacanciesPageSize) ||
-                      vacanciesLoading)
-                  }
+                  onClick={() => table.nextPage()}
+                  disabled={!table.getCanNextPage()}
                 >
                   <span className="sr-only">Ir para a próxima página</span>
                   <IconChevronRight />
@@ -1284,19 +1199,8 @@ export function DataTable({
                   variant="outline"
                   className="hidden size-8 lg:flex bg-transparent"
                   size="icon"
-                  onClick={() =>
-                    setVacanciesPage(
-                      vacanciesTotal !== null
-                        ? Math.ceil(vacanciesTotal / vacanciesPageSize) || 1
-                        : 1
-                    )
-                  }
-                  disabled={
-                    vacanciesTotal !== null &&
-                    (vacanciesPage >=
-                      Math.ceil(vacanciesTotal / vacanciesPageSize) ||
-                      vacanciesLoading)
-                  }
+                  onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                  disabled={!table.getCanNextPage()}
                 >
                   <span className="sr-only">Ir para a última página</span>
                   <IconChevronsRight />
@@ -1304,42 +1208,260 @@ export function DataTable({
               </div>
             </div>
           </div>
-        )}
-      </TabsContent>
-      <TabsContent
-        value="candidaturas"
-        className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
-      >
-        <div className="text-sm text-muted-foreground">
-          {mode === "admin" && activeTab === "candidaturas"
-            ? `${
-                applicationsTotal !== null ? applicationsTotal : 0
-              } candidaturas encontradas`
-            : `${applicationsData.length} candidaturas encontradas`}
-        </div>
-        <div className="overflow-hidden rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Vaga</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Candidato</TableHead>
-                <TableHead className="text-right">Data</TableHead>
-                <TableHead>Empresa</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mode === "admin" && activeTab === "candidaturas" ? (
-                applicationsLoading ? (
+        </TabsContent>
+      )}
+      {activeTab === "vagas" && (
+        <TabsContent
+          value="vagas"
+          className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
+        >
+          <div className="text-sm text-muted-foreground">
+            {mode === "admin" && activeTab === "vagas"
+              ? `${
+                  vacanciesTotal !== null ? vacanciesTotal : 0
+                } vagas encontradas`
+              : `${vacanciesData.length} vagas encontradas`}
+          </div>
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Empresa</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Candidaturas</TableHead>
+                  <TableHead className="text-right">Visualizações</TableHead>
+                  <TableHead>Responsável</TableHead>
+                  {mode === "admin" && activeTab === "vagas" && (
+                    <TableHead className="text-right">Ações</TableHead>
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {mode === "admin" && activeTab === "vagas" ? (
+                  vacanciesLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-24 text-center">
+                        Carregando vagas...
+                      </TableCell>
+                    </TableRow>
+                  ) : adminVacanciesData.length > 0 ? (
+                    adminVacanciesData.map((row: any) => (
+                      <AdminVacancyRow
+                        key={row._id || row.id}
+                        row={row}
+                        onUpdate={handleVacancyUpdate}
+                        onRefresh={() =>
+                          setVacanciesRefreshKey((prev) => prev + 1)
+                        }
+                      />
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-24 text-center">
+                        Nenhuma vaga encontrada.
+                      </TableCell>
+                    </TableRow>
+                  )
+                ) : vacanciesData.length > 0 ? (
+                  vacanciesData.map((row: any) => (
+                    <TableRow key={row.id}>
+                      <TableCell>{row.empresa}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{row.tipoSecao}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{row.statusSecao}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{row.meta}</TableCell>
+                      <TableCell className="text-right">{row.limite}</TableCell>
+                      <TableCell>{row.revisor}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center">
-                      Carregando candidaturas...
+                      Nenhuma vaga encontrada.
                     </TableCell>
                   </TableRow>
-                ) : adminApplicationsData.length > 0 ? (
-                  adminApplicationsData.map((row: any) => (
-                    <TableRow key={row._id || row.id}>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          {mode === "admin" && activeTab === "vagas" && (
+            <div className="flex items-center justify-between px-4">
+              <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+                Mostrando {adminVacanciesData.length} de{" "}
+                {vacanciesTotal !== null ? vacanciesTotal : 0} vagas
+              </div>
+              <div className="flex w-full items-center gap-8 lg:w-fit">
+                <div className="hidden items-center gap-2 lg:flex">
+                  <Label
+                    htmlFor="vacancies-rows-per-page"
+                    className="text-sm font-medium"
+                  >
+                    Linhas por página
+                  </Label>
+                  <Select
+                    value={`${vacanciesPageSize}`}
+                    onValueChange={(value) => {
+                      setVacanciesPageSize(Number(value));
+                      setVacanciesPage(1);
+                    }}
+                  >
+                    <SelectTrigger
+                      className="w-20 h-8"
+                      id="vacancies-rows-per-page"
+                    >
+                      <SelectValue placeholder={vacanciesPageSize} />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                      {[10, 20, 30, 40, 50].map((pageSize) => (
+                        <SelectItem key={pageSize} value={`${pageSize}`}>
+                          {pageSize}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex w-fit items-center justify-center text-sm font-medium">
+                  Página {vacanciesPage} de{" "}
+                  {vacanciesTotal !== null
+                    ? Math.ceil(vacanciesTotal / vacanciesPageSize) || 1
+                    : 1}
+                </div>
+                <div className="ml-auto flex items-center gap-2 lg:ml-0">
+                  <Button
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex bg-transparent"
+                    onClick={() => setVacanciesPage(1)}
+                    disabled={vacanciesPage === 1 || vacanciesLoading}
+                  >
+                    <span className="sr-only">Ir para a primeira página</span>
+                    <IconChevronsLeft />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="size-8 bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setVacanciesPage((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={vacanciesPage === 1 || vacanciesLoading}
+                  >
+                    <span className="sr-only">Ir para a página anterior</span>
+                    <IconChevronLeft />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="size-8 bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setVacanciesPage((prev) =>
+                        Math.min(
+                          vacanciesTotal !== null
+                            ? Math.ceil(vacanciesTotal / vacanciesPageSize) || 1
+                            : 1,
+                          prev + 1
+                        )
+                      )
+                    }
+                    disabled={
+                      vacanciesTotal !== null &&
+                      (vacanciesPage >=
+                        Math.ceil(vacanciesTotal / vacanciesPageSize) ||
+                        vacanciesLoading)
+                    }
+                  >
+                    <span className="sr-only">Ir para a próxima página</span>
+                    <IconChevronRight />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="hidden size-8 lg:flex bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setVacanciesPage(
+                        vacanciesTotal !== null
+                          ? Math.ceil(vacanciesTotal / vacanciesPageSize) || 1
+                          : 1
+                      )
+                    }
+                    disabled={
+                      vacanciesTotal !== null &&
+                      (vacanciesPage >=
+                        Math.ceil(vacanciesTotal / vacanciesPageSize) ||
+                        vacanciesLoading)
+                    }
+                  >
+                    <span className="sr-only">Ir para a última página</span>
+                    <IconChevronsRight />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+      )}
+      {activeTab === "candidaturas" && (
+        <TabsContent
+          value="candidaturas"
+          className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
+        >
+          <div className="text-sm text-muted-foreground">
+            {mode === "admin" && activeTab === "candidaturas"
+              ? `${
+                  applicationsTotal !== null ? applicationsTotal : 0
+                } candidaturas encontradas`
+              : `${applicationsData.length} candidaturas encontradas`}
+          </div>
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Vaga</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Candidato</TableHead>
+                  <TableHead className="text-right">Data</TableHead>
+                  <TableHead>Empresa</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {mode === "admin" && activeTab === "candidaturas" ? (
+                  applicationsLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        Carregando candidaturas...
+                      </TableCell>
+                    </TableRow>
+                  ) : adminApplicationsData.length > 0 ? (
+                    adminApplicationsData.map((row: any) => (
+                      <TableRow key={row._id || row.id}>
+                        <TableCell>{row.empresa}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{row.tipoSecao}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{row.statusSecao}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{row.meta}</TableCell>
+                        <TableCell className="text-right">
+                          {row.limite}
+                        </TableCell>
+                        <TableCell>{row.revisor}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        Nenhuma candidatura encontrada.
+                      </TableCell>
+                    </TableRow>
+                  )
+                ) : applicationsData.length > 0 ? (
+                  applicationsData.map((row: any) => (
+                    <TableRow key={row.id}>
                       <TableCell>{row.empresa}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{row.tipoSecao}</Badge>
@@ -1358,58 +1480,381 @@ export function DataTable({
                       Nenhuma candidatura encontrada.
                     </TableCell>
                   </TableRow>
-                )
-              ) : applicationsData.length > 0 ? (
-                applicationsData.map((row: any) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.empresa}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{row.tipoSecao}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{row.statusSecao}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{row.meta}</TableCell>
-                    <TableCell className="text-right">{row.limite}</TableCell>
-                    <TableCell>{row.revisor}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          {mode === "admin" && activeTab === "candidaturas" && (
+            <div className="flex items-center justify-between px-4">
+              <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+                Mostrando {adminApplicationsData.length} de{" "}
+                {applicationsTotal !== null ? applicationsTotal : 0}{" "}
+                candidaturas
+              </div>
+              <div className="flex w-full items-center gap-8 lg:w-fit">
+                <div className="hidden items-center gap-2 lg:flex">
+                  <Label
+                    htmlFor="applications-rows-per-page"
+                    className="text-sm font-medium"
+                  >
+                    Linhas por página
+                  </Label>
+                  <Select
+                    value={`${applicationsPageSize}`}
+                    onValueChange={(value) => {
+                      setApplicationsPageSize(Number(value));
+                      setApplicationsPage(1);
+                    }}
+                  >
+                    <SelectTrigger
+                      className="w-20 h-8"
+                      id="applications-rows-per-page"
+                    >
+                      <SelectValue placeholder={applicationsPageSize} />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                      {[10, 20, 30, 40, 50].map((pageSize) => (
+                        <SelectItem key={pageSize} value={`${pageSize}`}>
+                          {pageSize}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex w-fit items-center justify-center text-sm font-medium">
+                  Página {applicationsPage} de{" "}
+                  {applicationsTotal !== null
+                    ? Math.ceil(applicationsTotal / applicationsPageSize) || 1
+                    : 1}
+                </div>
+                <div className="ml-auto flex items-center gap-2 lg:ml-0">
+                  <Button
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex bg-transparent"
+                    onClick={() => setApplicationsPage(1)}
+                    disabled={applicationsPage === 1 || applicationsLoading}
+                  >
+                    <span className="sr-only">Ir para a primeira página</span>
+                    <IconChevronsLeft />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="size-8 bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setApplicationsPage((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={applicationsPage === 1 || applicationsLoading}
+                  >
+                    <span className="sr-only">Ir para a página anterior</span>
+                    <IconChevronLeft />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="size-8 bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setApplicationsPage((prev) =>
+                        Math.min(
+                          applicationsTotal !== null
+                            ? Math.ceil(
+                                applicationsTotal / applicationsPageSize
+                              ) || 1
+                            : 1,
+                          prev + 1
+                        )
+                      )
+                    }
+                    disabled={
+                      applicationsTotal !== null &&
+                      (applicationsPage >=
+                        Math.ceil(applicationsTotal / applicationsPageSize) ||
+                        applicationsLoading)
+                    }
+                  >
+                    <span className="sr-only">Ir para a próxima página</span>
+                    <IconChevronRight />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="hidden size-8 lg:flex bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setApplicationsPage(
+                        applicationsTotal !== null
+                          ? Math.ceil(
+                              applicationsTotal / applicationsPageSize
+                            ) || 1
+                          : 1
+                      )
+                    }
+                    disabled={
+                      applicationsTotal !== null &&
+                      (applicationsPage >=
+                        Math.ceil(applicationsTotal / applicationsPageSize) ||
+                        applicationsLoading)
+                    }
+                  >
+                    <span className="sr-only">Ir para a última página</span>
+                    <IconChevronsRight />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+      )}
+
+      {activeTab === "comentarios" && (
+        <TabsContent
+          value="comentarios"
+          className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
+        >
+          <div className="text-sm text-muted-foreground">
+            {mode === "admin" && activeTab === "comentarios"
+              ? `${
+                  commentsTotal !== null ? commentsTotal : 0
+                } comentários encontrados`
+              : `${adminCommentsData.length} comentários encontrados`}
+          </div>
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
-                    Nenhuma candidatura encontrada.
-                  </TableCell>
+                  <TableHead>Autor</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Curtidas</TableHead>
+                  <TableHead className="text-right">Respostas</TableHead>
+                  <TableHead>Post</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        {mode === "admin" && activeTab === "candidaturas" && (
+              </TableHeader>
+              <TableBody>
+                {mode === "admin" && activeTab === "comentarios" ? (
+                  commentsLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        Carregando comentários...
+                      </TableCell>
+                    </TableRow>
+                  ) : adminCommentsData.length > 0 ? (
+                    adminCommentsData.map((row: any) => (
+                      <TableRow key={row._id || row.id}>
+                        <TableCell>{row.empresa}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{row.tipoSecao}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{row.statusSecao}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{row.meta}</TableCell>
+                        <TableCell className="text-right">
+                          {row.limite}
+                        </TableCell>
+                        <TableCell>{row.revisor}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        Nenhum comentário encontrado.
+                      </TableCell>
+                    </TableRow>
+                  )
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                      Nenhum comentário encontrado.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          {mode === "admin" && activeTab === "comentarios" && (
+            <div className="flex items-center justify-between px-4">
+              <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+                Mostrando {adminCommentsData.length} de{" "}
+                {commentsTotal !== null ? commentsTotal : 0} comentários
+              </div>
+              <div className="flex w-full items-center gap-8 lg:w-fit">
+                <div className="hidden items-center gap-2 lg:flex">
+                  <Label
+                    htmlFor="comments-rows-per-page"
+                    className="text-sm font-medium"
+                  >
+                    Linhas por página
+                  </Label>
+                  <Select
+                    value={`${commentsPageSize}`}
+                    onValueChange={(value) => {
+                      setCommentsPageSize(Number(value));
+                      setCommentsPage(1);
+                    }}
+                  >
+                    <SelectTrigger
+                      className="w-20 h-8"
+                      id="comments-rows-per-page"
+                    >
+                      <SelectValue placeholder={commentsPageSize} />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                      {[10, 20, 30, 40, 50].map((pageSize) => (
+                        <SelectItem key={pageSize} value={`${pageSize}`}>
+                          {pageSize}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex w-fit items-center justify-center text-sm font-medium">
+                  Página {commentsPage} de{" "}
+                  {commentsTotal !== null
+                    ? Math.ceil(commentsTotal / commentsPageSize) || 1
+                    : 1}
+                </div>
+                <div className="ml-auto flex items-center gap-2 lg:ml-0">
+                  <Button
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex bg-transparent"
+                    onClick={() => setCommentsPage(1)}
+                    disabled={commentsPage === 1 || commentsLoading}
+                  >
+                    <span className="sr-only">Ir para a primeira página</span>
+                    <IconChevronsLeft />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="size-8 bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setCommentsPage((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={commentsPage === 1 || commentsLoading}
+                  >
+                    <span className="sr-only">Ir para a página anterior</span>
+                    <IconChevronLeft />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="size-8 bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setCommentsPage((prev) =>
+                        Math.min(
+                          commentsTotal !== null
+                            ? Math.ceil(commentsTotal / commentsPageSize) || 1
+                            : 1,
+                          prev + 1
+                        )
+                      )
+                    }
+                    disabled={
+                      commentsTotal !== null &&
+                      (commentsPage >=
+                        Math.ceil(commentsTotal / commentsPageSize) ||
+                        commentsLoading)
+                    }
+                  >
+                    <span className="sr-only">Ir para a próxima página</span>
+                    <IconChevronRight />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="hidden size-8 lg:flex bg-transparent"
+                    size="icon"
+                    onClick={() =>
+                      setCommentsPage(
+                        commentsTotal !== null
+                          ? Math.ceil(commentsTotal / commentsPageSize) || 1
+                          : 1
+                      )
+                    }
+                    disabled={
+                      commentsTotal !== null &&
+                      (commentsPage >=
+                        Math.ceil(commentsTotal / commentsPageSize) ||
+                        commentsLoading)
+                    }
+                  >
+                    <span className="sr-only">Ir para a última página</span>
+                    <IconChevronsRight />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+      )}
+
+      {mode === "admin" && activeTab === "empresas" && (
+        <TabsContent
+          value="empresas"
+          className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
+        >
+          <div className="text-sm text-muted-foreground">
+            {companiesTotal > 0
+              ? `${companiesTotal} empresas encontradas`
+              : "Carregando empresas..."}
+          </div>
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Empresa</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Vagas</TableHead>
+                  <TableHead className="text-right">Seguidores</TableHead>
+                  <TableHead>Admin Principal</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {adminCompaniesData.length > 0 ? (
+                  adminCompaniesData.map((row: any) => (
+                    <AdminCompanyRow
+                      key={row._id || row.id}
+                      row={row}
+                      onUpdate={handleCreateCompany}
+                      onRefresh={() =>
+                        setCompaniesRefreshKey((prev) => prev + 1)
+                      }
+                    />
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                      Nenhuma empresa encontrada.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
           <div className="flex items-center justify-between px-4">
             <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-              Mostrando {adminApplicationsData.length} de{" "}
-              {applicationsTotal !== null ? applicationsTotal : 0} candidaturas
+              Mostrando {adminCompaniesData.length} de {companiesTotal} empresas
             </div>
             <div className="flex w-full items-center gap-8 lg:w-fit">
               <div className="hidden items-center gap-2 lg:flex">
                 <Label
-                  htmlFor="applications-rows-per-page"
+                  htmlFor="companies-rows-per-page"
                   className="text-sm font-medium"
                 >
                   Linhas por página
                 </Label>
                 <Select
-                  value={`${applicationsPageSize}`}
+                  value={`${companiesPageSize}`}
                   onValueChange={(value) => {
-                    setApplicationsPageSize(Number(value));
-                    setApplicationsPage(1);
+                    setCompaniesPageSize(Number(value));
+                    setCompaniesPage(1);
                   }}
                 >
                   <SelectTrigger
                     className="w-20 h-8"
-                    id="applications-rows-per-page"
+                    id="companies-rows-per-page"
                   >
-                    <SelectValue placeholder={applicationsPageSize} />
+                    <SelectValue placeholder={companiesPageSize} />
                   </SelectTrigger>
                   <SelectContent side="top">
                     {[10, 20, 30, 40, 50].map((pageSize) => (
@@ -1421,17 +1866,15 @@ export function DataTable({
                 </Select>
               </div>
               <div className="flex w-fit items-center justify-center text-sm font-medium">
-                Página {applicationsPage} de{" "}
-                {applicationsTotal !== null
-                  ? Math.ceil(applicationsTotal / applicationsPageSize) || 1
-                  : 1}
+                Página {companiesPage} de{" "}
+                {Math.ceil(companiesTotal / companiesPageSize) || 1}
               </div>
               <div className="ml-auto flex items-center gap-2 lg:ml-0">
                 <Button
                   variant="outline"
                   className="hidden h-8 w-8 p-0 lg:flex bg-transparent"
-                  onClick={() => setApplicationsPage(1)}
-                  disabled={applicationsPage === 1 || applicationsLoading}
+                  onClick={() => setCompaniesPage(1)}
+                  disabled={companiesPage === 1}
                 >
                   <span className="sr-only">Ir para a primeira página</span>
                   <IconChevronsLeft />
@@ -1441,9 +1884,9 @@ export function DataTable({
                   className="size-8 bg-transparent"
                   size="icon"
                   onClick={() =>
-                    setApplicationsPage((prev) => Math.max(1, prev - 1))
+                    setCompaniesPage((prev) => Math.max(1, prev - 1))
                   }
-                  disabled={applicationsPage === 1 || applicationsLoading}
+                  disabled={companiesPage === 1}
                 >
                   <span className="sr-only">Ir para a página anterior</span>
                   <IconChevronLeft />
@@ -1453,22 +1896,16 @@ export function DataTable({
                   className="size-8 bg-transparent"
                   size="icon"
                   onClick={() =>
-                    setApplicationsPage((prev) =>
+                    setCompaniesPage((prev) =>
                       Math.min(
-                        applicationsTotal !== null
-                          ? Math.ceil(
-                              applicationsTotal / applicationsPageSize
-                            ) || 1
-                          : 1,
+                        Math.ceil(companiesTotal / companiesPageSize) || 1,
                         prev + 1
                       )
                     )
                   }
                   disabled={
-                    applicationsTotal !== null &&
-                    (applicationsPage >=
-                      Math.ceil(applicationsTotal / applicationsPageSize) ||
-                      applicationsLoading)
+                    companiesPage >=
+                    (Math.ceil(companiesTotal / companiesPageSize) || 1)
                   }
                 >
                   <span className="sr-only">Ir para a próxima página</span>
@@ -1479,18 +1916,13 @@ export function DataTable({
                   className="hidden size-8 lg:flex bg-transparent"
                   size="icon"
                   onClick={() =>
-                    setApplicationsPage(
-                      applicationsTotal !== null
-                        ? Math.ceil(applicationsTotal / applicationsPageSize) ||
-                            1
-                        : 1
+                    setCompaniesPage(
+                      Math.ceil(companiesTotal / companiesPageSize) || 1
                     )
                   }
                   disabled={
-                    applicationsTotal !== null &&
-                    (applicationsPage >=
-                      Math.ceil(applicationsTotal / applicationsPageSize) ||
-                      applicationsLoading)
+                    companiesPage >=
+                    (Math.ceil(companiesTotal / companiesPageSize) || 1)
                   }
                 >
                   <span className="sr-only">Ir para a última página</span>
@@ -1499,363 +1931,145 @@ export function DataTable({
               </div>
             </div>
           </div>
-        )}
-      </TabsContent>
-      {mode === "admin" ? (
-        <>
-          <TabsContent
-            value="empresas"
-            className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
-          >
-            <div className="text-sm text-muted-foreground">
-              {companiesTotal > 0
-                ? `${companiesTotal} empresas encontradas`
-                : "Carregando empresas..."}
-            </div>
-            <div className="overflow-hidden rounded-lg border">
-              <Table>
-                <TableHeader>
+        </TabsContent>
+      )}
+
+      {mode === "admin" && activeTab === "usuarios" && (
+        <TabsContent
+          value="usuarios"
+          className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
+        >
+          <div className="text-sm text-muted-foreground">
+            {usersTotal > 0
+              ? `${usersTotal} usuários encontrados`
+              : "Carregando usuários..."}
+          </div>
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Usuário</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead className="text-right">Data Cadastro</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {adminUsersData.length > 0 ? (
+                  adminUsersData.map((row: any) => (
+                    <AdminUserRow
+                      key={row._id || row.id}
+                      row={row}
+                      onUpdate={handleCreateUser}
+                      onRefresh={() => setUsersRefreshKey((prev) => prev + 1)}
+                    />
+                  ))
+                ) : (
                   <TableRow>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Vagas</TableHead>
-                    <TableHead className="text-right">Seguidores</TableHead>
-                    <TableHead>Admin Principal</TableHead>
-                    <TableHead>Ações</TableHead>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      Nenhum usuário encontrado.
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {companiesLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
-                        Carregando empresas...
-                      </TableCell>
-                    </TableRow>
-                  ) : adminCompaniesData.length > 0 ? (
-                    adminCompaniesData.map((row: any) => (
-                      <AdminCompanyRow
-                        key={row._id || row.id}
-                        row={row}
-                        onUpdate={onCompanyUpdate}
-                        onRefresh={() =>
-                          setCompaniesRefreshKey((prev) => prev + 1)
-                        }
-                        onUsersRefresh={() =>
-                          setUsersRefreshKey((prev) => prev + 1)
-                        }
-                      />
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
-                        Nenhuma empresa encontrada.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="flex items-center justify-between px-4">
+            <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+              Mostrando {adminUsersData.length} de {usersTotal} usuários
             </div>
-            {/* Paginação para empresas */}
-            <div className="flex items-center justify-between px-4">
-              <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-                Mostrando {adminCompaniesData.length} de {companiesTotal}{" "}
-                empresas
+            <div className="flex w-full items-center gap-8 lg:w-fit">
+              <div className="hidden items-center gap-2 lg:flex">
+                <Label
+                  htmlFor="users-rows-per-page"
+                  className="text-sm font-medium"
+                >
+                  Linhas por página
+                </Label>
+                <Select
+                  value={`${usersPageSize}`}
+                  onValueChange={(value) => {
+                    setUsersPageSize(Number(value));
+                    setUsersPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-20 h-8" id="users-rows-per-page">
+                    <SelectValue placeholder={usersPageSize} />
+                  </SelectTrigger>
+                  <SelectContent side="top">
+                    {[10, 20, 30, 40, 50].map((pageSize) => (
+                      <SelectItem key={pageSize} value={`${pageSize}`}>
+                        {pageSize}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="flex w-full items-center gap-8 lg:w-fit">
-                <div className="hidden items-center gap-2 lg:flex">
-                  <Label
-                    htmlFor="companies-rows-per-page"
-                    className="text-sm font-medium"
-                  >
-                    Linhas por página
-                  </Label>
-                  <Select
-                    value={`${companiesPageSize}`}
-                    onValueChange={(value) => {
-                      setCompaniesPageSize(Number(value));
-                      setCompaniesPage(1); // Reset para primeira página
-                    }}
-                  >
-                    <SelectTrigger
-                      className="w-20 h-8"
-                      id="companies-rows-per-page"
-                    >
-                      <SelectValue placeholder={companiesPageSize} />
-                    </SelectTrigger>
-                    <SelectContent side="top">
-                      {[10, 20, 30, 40, 50].map((pageSize) => (
-                        <SelectItem key={pageSize} value={`${pageSize}`}>
-                          {pageSize}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex w-fit items-center justify-center text-sm font-medium">
-                  Página {companiesPage} de{" "}
-                  {Math.ceil(companiesTotal / companiesPageSize) || 1}
-                </div>
-                <div className="ml-auto flex items-center gap-2 lg:ml-0">
-                  <Button
-                    variant="outline"
-                    className="hidden h-8 w-8 p-0 lg:flex bg-transparent"
-                    onClick={() => setCompaniesPage(1)}
-                    disabled={companiesPage === 1 || companiesLoading}
-                  >
-                    <span className="sr-only">Ir para a primeira página</span>
-                    <IconChevronsLeft />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="size-8 bg-transparent"
-                    size="icon"
-                    onClick={() =>
-                      setCompaniesPage((prev) => Math.max(1, prev - 1))
-                    }
-                    disabled={companiesPage === 1 || companiesLoading}
-                  >
-                    <span className="sr-only">Ir para a página anterior</span>
-                    <IconChevronLeft />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="size-8 bg-transparent"
-                    size="icon"
-                    onClick={() =>
-                      setCompaniesPage((prev) =>
-                        Math.min(
-                          Math.ceil(companiesTotal / companiesPageSize) || 1,
-                          prev + 1
-                        )
+              <div className="flex w-fit items-center justify-center text-sm font-medium">
+                Página {usersPage} de{" "}
+                {Math.ceil(usersTotal / usersPageSize) || 1}
+              </div>
+              <div className="ml-auto flex items-center gap-2 lg:ml-0">
+                <Button
+                  variant="outline"
+                  className="hidden h-8 w-8 p-0 lg:flex bg-transparent"
+                  onClick={() => setUsersPage(1)}
+                  disabled={usersPage === 1}
+                >
+                  <span className="sr-only">Ir para a primeira página</span>
+                  <IconChevronsLeft />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="size-8 bg-transparent"
+                  size="icon"
+                  onClick={() => setUsersPage((prev) => Math.max(1, prev - 1))}
+                  disabled={usersPage === 1}
+                >
+                  <span className="sr-only">Ir para a página anterior</span>
+                  <IconChevronLeft />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="size-8 bg-transparent"
+                  size="icon"
+                  onClick={() =>
+                    setUsersPage((prev) =>
+                      Math.min(
+                        Math.ceil(usersTotal / usersPageSize) || 1,
+                        prev + 1
                       )
-                    }
-                    disabled={
-                      companiesPage >=
-                        Math.ceil(companiesTotal / companiesPageSize) ||
-                      companiesLoading
-                    }
-                  >
-                    <span className="sr-only">Ir para a próxima página</span>
-                    <IconChevronRight />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="hidden size-8 lg:flex bg-transparent"
-                    size="icon"
-                    onClick={() =>
-                      setCompaniesPage(
-                        Math.ceil(companiesTotal / companiesPageSize) || 1
-                      )
-                    }
-                    disabled={
-                      companiesPage >=
-                        Math.ceil(companiesTotal / companiesPageSize) ||
-                      companiesLoading
-                    }
-                  >
-                    <span className="sr-only">Ir para a última página</span>
-                    <IconChevronsRight />
-                  </Button>
-                </div>
+                    )
+                  }
+                  disabled={
+                    usersPage >= (Math.ceil(usersTotal / usersPageSize) || 1)
+                  }
+                >
+                  <span className="sr-only">Ir para a próxima página</span>
+                  <IconChevronRight />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="hidden size-8 lg:flex bg-transparent"
+                  size="icon"
+                  onClick={() =>
+                    setUsersPage(Math.ceil(usersTotal / usersPageSize) || 1)
+                  }
+                  disabled={
+                    usersPage >= (Math.ceil(usersTotal / usersPageSize) || 1)
+                  }
+                >
+                  <span className="sr-only">Ir para a última página</span>
+                  <IconChevronsRight />
+                </Button>
               </div>
             </div>
-          </TabsContent>
-          <TabsContent
-            value="usuarios"
-            className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
-          >
-            <div className="text-sm text-muted-foreground">
-              {usersTotal > 0
-                ? `${usersTotal} usuários encontrados`
-                : "Carregando usuários..."}
-            </div>
-            <div className="overflow-hidden rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Função</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Data de Criação</TableHead>
-                    <TableHead>Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {usersLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
-                        Carregando usuários...
-                      </TableCell>
-                    </TableRow>
-                  ) : adminUsersData.length > 0 ? (
-                    adminUsersData.map((row: any) => (
-                      <TableRow key={row._id || row.id}>
-                        <TableCell className="font-medium">
-                          <EditUserDrawer
-                            user={row.user}
-                            onUpdate={(user: any) => {
-                              if (onUserUpdate) {
-                                onUserUpdate(user);
-                              }
-                              // Recarregar lista de usuarios após atualizar
-                              setUsersRefreshKey((prev) => prev + 1);
-                            }}
-                            trigger={
-                              <Button
-                                variant="link"
-                                className="text-foreground w-fit px-0 text-left"
-                              >
-                                {row.empresa}
-                              </Button>
-                            }
-                          />
-                        </TableCell>
-                        <TableCell>{row.revisor}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{row.statusSecao}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{row.meta}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{row.limite}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(row.data).toLocaleDateString("pt-BR")}
-                        </TableCell>
-                        <TableCell>
-                          <EditUserDrawer
-                            user={row.user}
-                            onUpdate={(user: any) => {
-                              if (onUserUpdate) {
-                                onUserUpdate(user);
-                              }
-                              // Recarregar lista de usuarios após atualizar
-                              setUsersRefreshKey((prev) => prev + 1);
-                            }}
-                            trigger={
-                              <Button variant="ghost" size="sm">
-                                Editar
-                              </Button>
-                            }
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
-                        Nenhum usuário encontrado.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            {/* Paginação para usuarios */}
-            <div className="flex items-center justify-between px-4">
-              <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-                Mostrando {adminUsersData.length} de {usersTotal} usuários
-              </div>
-              <div className="flex w-full items-center gap-8 lg:w-fit">
-                <div className="hidden items-center gap-2 lg:flex">
-                  <Label
-                    htmlFor="users-rows-per-page"
-                    className="text-sm font-medium"
-                  >
-                    Linhas por página
-                  </Label>
-                  <Select
-                    value={`${usersPageSize}`}
-                    onValueChange={(value) => {
-                      setUsersPageSize(Number(value));
-                      setUsersPage(1);
-                    }}
-                  >
-                    <SelectTrigger
-                      className="w-20 h-8"
-                      id="users-rows-per-page"
-                    >
-                      <SelectValue placeholder={usersPageSize} />
-                    </SelectTrigger>
-                    <SelectContent side="top">
-                      {[10, 20, 30, 40, 50].map((pageSize) => (
-                        <SelectItem key={pageSize} value={`${pageSize}`}>
-                          {pageSize}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex w-fit items-center justify-center text-sm font-medium">
-                  Página {usersPage} de{" "}
-                  {Math.ceil(usersTotal / usersPageSize) || 1}
-                </div>
-                <div className="ml-auto flex items-center gap-2 lg:ml-0">
-                  <Button
-                    variant="outline"
-                    className="hidden h-8 w-8 p-0 lg:flex bg-transparent"
-                    onClick={() => setUsersPage(1)}
-                    disabled={usersPage === 1 || usersLoading}
-                  >
-                    <span className="sr-only">Ir para a primeira página</span>
-                    <IconChevronsLeft />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="size-8 bg-transparent"
-                    size="icon"
-                    onClick={() =>
-                      setUsersPage((prev) => Math.max(1, prev - 1))
-                    }
-                    disabled={usersPage === 1 || usersLoading}
-                  >
-                    <span className="sr-only">Ir para a página anterior</span>
-                    <IconChevronLeft />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="size-8 bg-transparent"
-                    size="icon"
-                    onClick={() =>
-                      setUsersPage((prev) =>
-                        Math.min(
-                          Math.ceil(usersTotal / usersPageSize) || 1,
-                          prev + 1
-                        )
-                      )
-                    }
-                    disabled={
-                      usersPage >= Math.ceil(usersTotal / usersPageSize) ||
-                      usersLoading
-                    }
-                  >
-                    <span className="sr-only">Ir para a próxima página</span>
-                    <IconChevronRight />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="hidden size-8 lg:flex bg-transparent"
-                    size="icon"
-                    onClick={() =>
-                      setUsersPage(Math.ceil(usersTotal / usersPageSize) || 1)
-                    }
-                    disabled={
-                      usersPage >= Math.ceil(usersTotal / usersPageSize) ||
-                      usersLoading
-                    }
-                  >
-                    <span className="sr-only">Ir para a última página</span>
-                    <IconChevronsRight />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-        </>
-      ) : (
+          </div>
+        </TabsContent>
+      )}
+
+      {mode !== "admin" && activeTab === "empresas" && (
         <TabsContent
           value="empresas"
           className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
@@ -1906,8 +2120,6 @@ export function DataTable({
     </Tabs>
   );
 }
-
-// Componente para linha de empresa no modo admin
 function AdminCompanyRow({
   row,
   onUpdate,
@@ -1937,19 +2149,21 @@ function AdminCompanyRow({
     <TableRow>
       <TableCell>
         <EditCompanyDrawer
-          company={row.company || {
-            _id: row._id,
-            name: row.empresa,
-            cnpj: "",
-            industry: "",
-            description: "",
-            size: "medium",
-            location: "",
-            isVerified: row.statusSecao === "Verificada",
-            benefits: [],
-            admins: [],
-            recruiters: [],
-          }}
+          company={
+            row.company || {
+              _id: row._id,
+              name: row.empresa,
+              cnpj: "",
+              industry: "",
+              description: "",
+              size: "medium",
+              location: "",
+              isVerified: row.statusSecao === "Verificada",
+              benefits: [],
+              admins: [],
+              recruiters: [],
+            }
+          }
           onUpdate={handleCompanyUpdate}
           trigger={
             <Button
@@ -1969,19 +2183,21 @@ function AdminCompanyRow({
       <TableCell>{row.revisor}</TableCell>
       <TableCell>
         <EditCompanyDrawer
-          company={row.company || {
-            _id: row._id,
-            name: row.empresa,
-            cnpj: "",
-            industry: "",
-            description: "",
-            size: "medium",
-            location: "",
-            isVerified: row.statusSecao === "Verificada",
-            benefits: [],
-            admins: [],
-            recruiters: [],
-          }}
+          company={
+            row.company || {
+              _id: row._id,
+              name: row.empresa,
+              cnpj: "",
+              industry: "",
+              description: "",
+              size: "medium",
+              location: "",
+              isVerified: row.statusSecao === "Verificada",
+              benefits: [],
+              admins: [],
+              recruiters: [],
+            }
+          }
           onUpdate={handleCompanyUpdate}
           trigger={
             <Button variant="ghost" size="sm">
@@ -2239,5 +2455,70 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
+  );
+}
+
+// Componente para linha de usuário no modo admin
+function AdminUserRow({
+  row,
+  onUpdate,
+  onRefresh,
+}: {
+  row: any;
+  onUpdate?: (user: any) => void;
+  onRefresh?: () => void;
+}) {
+  const handleUserUpdate = (user: any) => {
+    if (onUpdate) {
+      onUpdate(user);
+    }
+    // Recarregar lista de usuários após atualizar
+    if (onRefresh) {
+      onRefresh();
+    }
+  };
+
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="flex flex-col">
+          <EditUserDrawer
+            user={row.user}
+            onUpdate={handleUserUpdate}
+            trigger={
+              <Button
+                variant="link"
+                className="h-auto p-0 text-foreground font-medium text-left"
+              >
+                {row.empresa}
+              </Button>
+            }
+          />
+          <span className="text-xs text-muted-foreground">{row.revisor}</span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <Badge variant={row.statusSecao === "active" ? "default" : "secondary"}>
+          {row.statusSecao}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <Badge variant="outline">{row.meta}</Badge>
+      </TableCell>
+      <TableCell className="text-right">
+        {new Date(row.data).toLocaleDateString("pt-BR")}
+      </TableCell>
+      <TableCell className="text-right">
+        <EditUserDrawer
+          user={row.user}
+          onUpdate={handleUserUpdate}
+          trigger={
+            <Button variant="ghost" size="sm">
+              Editar
+            </Button>
+          }
+        />
+      </TableCell>
+    </TableRow>
   );
 }

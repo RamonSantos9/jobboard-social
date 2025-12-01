@@ -107,9 +107,9 @@ export function StatsCards({ stats }: StatsCardsProps) {
               <card.icon className={`h-4 w-4 ${card.color}`} />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{card.value}</div>
-            <p className="text-xs text-muted-foreground mt-1">{card.subtitle}</p>
+          <CardContent className="overflow-visible">
+            <div className="text-2xl font-bold leading-none mb-2">{card.value}</div>
+            <p className="text-xs text-muted-foreground">{card.subtitle}</p>
           </CardContent>
         </Card>
       ))}

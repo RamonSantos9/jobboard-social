@@ -43,11 +43,16 @@ export async function GET(request: NextRequest) {
 
     // Buscar perfil do usuário
     const profile = (await Profile.findOne({ userId })
-      .select("skills experience location sector preferredLocation currentTitle currentCompany headline")
+      .select(
+        "skills experience location sector preferredLocation currentTitle currentCompany headline"
+      )
       .lean()) as Partial<IProfile> | null;
 
     if (!profile) {
-      return NextResponse.json({ error: "Perfil não encontrado" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Perfil não encontrado" },
+        { status: 404 }
+      );
     }
 
     // Buscar histórico de interações (últimos 30 dias)
@@ -65,10 +70,14 @@ export async function GET(request: NextRequest) {
 
     // Buscar empresas visitadas (via interações)
     const companyViews = new Set<string>();
-    const jobViews = interactions.filter((i) => i.itemType === "job" && i.interactionType === "view");
+    const jobViews = interactions.filter(
+      (i) => i.itemType === "job" && i.interactionType === "view"
+    );
     for (const interaction of jobViews) {
       try {
-        const job = await Vacancy.findById(interaction.itemId).select("companyId").lean();
+        const job = await Vacancy.findById(interaction.itemId)
+          .select("companyId")
+          .lean();
         if (job && (job as any).companyId) {
           companyViews.add((job as any).companyId.toString());
         }
@@ -82,12 +91,17 @@ export async function GET(request: NextRequest) {
     const applications = await Application.find({ candidateId: userId })
       .select("jobId")
       .lean();
-    const appliedJobIds = new Set(applications.map((app) => app.jobId.toString()));
+    const appliedJobIds = new Set(
+      applications.map((app) => app.jobId.toString())
+    );
 
     // Buscar vagas publicadas
     const jobs = await Vacancy.find({
       status: "published",
-      $or: [{ expiresAt: { $exists: false } }, { expiresAt: { $gte: new Date() } }],
+      $or: [
+        { expiresAt: { $exists: false } },
+        { expiresAt: { $gte: new Date() } },
+      ],
     })
       .populate("companyId", "name logoUrl location")
       .sort({ createdAt: -1 })
@@ -120,7 +134,8 @@ export async function GET(request: NextRequest) {
     const jobItems: FeedItem[] = await Promise.all(
       jobs.map(async (job: any) => {
         const jobId = String(job._id);
-        const companyId = job.companyId?._id?.toString() || job.companyId?.toString();
+        const companyId =
+          job.companyId?._id?.toString() || job.companyId?.toString();
 
         // Histórico de interações para esta vaga
         const jobInteractions = interactions.filter(
@@ -128,7 +143,8 @@ export async function GET(request: NextRequest) {
         );
 
         const interactionHistory: UserInteractionHistory = {
-          views: jobInteractions.filter((i) => i.interactionType === "view").length,
+          views: jobInteractions.filter((i) => i.interactionType === "view")
+            .length,
           saves: savedJobIds.includes(jobId) ? 1 : 0,
           applies: appliedJobIds.has(jobId) ? 1 : 0,
           companyViews: companyViews.has(companyId || "") ? 1 : 0,
@@ -164,7 +180,8 @@ export async function GET(request: NextRequest) {
     const postItems: FeedItem[] = await Promise.all(
       posts.map(async (post: any) => {
         const postId = String(post._id);
-        const authorId = post.authorId?._id?.toString() || post.authorId?.toString();
+        const authorId =
+          post.authorId?._id?.toString() || post.authorId?.toString();
         const isFollowingAuthor = followingUserIds.includes(authorId || "");
 
         // Verificar se post é de empresa seguida
@@ -180,7 +197,8 @@ export async function GET(request: NextRequest) {
         );
 
         const interactionHistory: UserInteractionHistory = {
-          views: postInteractions.filter((i) => i.interactionType === "view").length,
+          views: postInteractions.filter((i) => i.interactionType === "view")
+            .length,
           saves: 0,
           applies: 0,
           companyViews: 0,
@@ -188,13 +206,17 @@ export async function GET(request: NextRequest) {
             .filter((i) => i.interactionType === "view")
             .reduce((sum, i) => sum + (i.duration || 0), 0),
           liked: postInteractions.some((i) => i.interactionType === "like"),
-          commented: postInteractions.some((i) => i.interactionType === "comment"),
+          commented: postInteractions.some(
+            (i) => i.interactionType === "comment"
+          ),
           shared: postInteractions.some((i) => i.interactionType === "share"),
         };
 
         // Contar reações, comentários e shares
         const reactionsCount = (post as any).reactions?.length || 0;
-        const commentsCount = await Comment.countDocuments({ postId: new mongoose.Types.ObjectId(postId) });
+        const commentsCount = await Comment.countDocuments({
+          postId: new mongoose.Types.ObjectId(postId),
+        });
         const sharesCount = (post as any).sharesCount || 0;
 
         const scoreResult = calculatePostFeedScore(
@@ -219,7 +241,9 @@ export async function GET(request: NextRequest) {
     );
 
     // Combinar e ordenar por score
-    const allItems: FeedItem[] = [...jobItems, ...postItems].sort((a, b) => b.score - a.score);
+    const allItems: FeedItem[] = [...jobItems, ...postItems].sort(
+      (a, b) => b.score - a.score
+    );
 
     // Aplicar diversificação
     const diversified = applyDiversity(allItems);
@@ -233,7 +257,7 @@ export async function GET(request: NextRequest) {
         if (item.type === "job") {
           const job = item.data;
           return {
-            _id: job._id,
+            _id: String(job._id),
             type: "job",
             title: job.title,
             description: job.description,
@@ -281,13 +305,18 @@ export async function GET(request: NextRequest) {
 
           if ((post as any).reactions) {
             (post as any).reactions.forEach((r: any) => {
-              if (reactionsCount[r.type as keyof typeof reactionsCount] !== undefined) {
+              if (
+                reactionsCount[r.type as keyof typeof reactionsCount] !==
+                undefined
+              ) {
                 reactionsCount[r.type as keyof typeof reactionsCount]++;
               }
             });
           }
 
-          const commentsCount = await Comment.countDocuments({ postId: (post as any)._id });
+          const commentsCount = await Comment.countDocuments({
+            postId: (post as any)._id,
+          });
           const sharesCount = (post as any).sharesCount || 0;
 
           // Verificar reação atual do usuário
@@ -325,7 +354,9 @@ export async function GET(request: NextRequest) {
             currentReaction,
             commentsCount,
             sharesCount,
-            isSuggestion: !isFollowingAuthor && (post as any).authorId?._id?.toString() !== userId.toString(),
+            isSuggestion:
+              !isFollowingAuthor &&
+              (post as any).authorId?._id?.toString() !== userId.toString(),
             createdAt: (post as any).createdAt,
           };
         }
@@ -351,4 +382,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

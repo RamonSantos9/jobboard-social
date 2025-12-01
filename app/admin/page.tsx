@@ -109,9 +109,9 @@ function AdminContent() {
             router.push("/feed");
             return;
           } else {
-            // Para outros erros, não setar erro, apenas redirecionar
+            // Para outros erros, mostrar mensagem de erro
             console.error("Erro ao buscar dados:", errorData);
-            router.push("/feed");
+            setError("Erro ao carregar dados da dashboard");
             return;
           }
         } else {
@@ -228,7 +228,7 @@ export default function AdminPage() {
       router.push("/feed/auth/login");
       return;
     }
-    
+
     // Verificar se o usuário é admin do sistema
     const userRole = (session.user as any)?.role || session.user?.role;
     if (!userRole || userRole !== "admin") {

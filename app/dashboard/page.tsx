@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sidebar";
 import { SectionCards } from "@/components/dashboard/sectionsCards";
 import { DataTable } from "@/components/dashboard/data-table";
+import { AdminDashboardSkeleton } from "@/components/dashboard/admin-skeleton";
 
 import { ChartPieLabelCustom } from "@/components/dashboard/graphics/chart-pie-label-custom";
 import { ChartPieInteractive } from "@/components/dashboard/graphics/chart-pie-interactive";
@@ -142,24 +143,7 @@ function DashboardContent() {
   }, [session, router]);
 
   if (loading) {
-    return (
-      <>
-        <AppSidebar variant="inset" />
-        <SidebarInset>
-          <SiteHeader />
-          <ScrollWrapper className="flex-1" variant="dashboard">
-            <div className="flex flex-1 items-center justify-center">
-              <div className="text-center">
-                <p className="text-lg font-medium">Carregando dados...</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Aguarde enquanto buscamos as informações
-                </p>
-              </div>
-            </div>
-          </ScrollWrapper>
-        </SidebarInset>
-      </>
-    );
+    return <AdminDashboardSkeleton />;
   }
 
   if (error) {

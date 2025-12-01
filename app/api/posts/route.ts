@@ -40,16 +40,25 @@ export async function GET(request: NextRequest) {
     const session = await auth();
     const userId = session?.user?.id;
 
-        // Buscar perfis separadamente para evitar problemas de populate aninhado
+    // Buscar perfis separadamente para evitar problemas de populate aninhado
     const postsWithProfiles = await Promise.all(
       posts.map(async (post) => {
         const profile = (await Profile.findOne({ userId: post.authorId._id })
           .select("firstName lastName photoUrl headline slug")
-          .lean()) as unknown as Partial<Pick<IProfile, "firstName" | "lastName" | "photoUrl" | "headline" | "slug">> | null;
+          .lean()) as unknown as Partial<
+          Pick<
+            IProfile,
+            "firstName" | "lastName" | "photoUrl" | "headline" | "slug"
+          >
+        > | null;
 
         // Verificar se o usuário atual está seguindo o autor do post
         let isFollowingAuthor = false;
-        if (userId && mongoose.Types.ObjectId.isValid(userId) && post.authorId._id) {
+        if (
+          userId &&
+          mongoose.Types.ObjectId.isValid(userId) &&
+          post.authorId._id
+        ) {
           try {
             const authorConnection = await Connection.findOne({
               followerId: new mongoose.Types.ObjectId(userId),
@@ -68,7 +77,12 @@ export async function GET(request: NextRequest) {
         // ou se o autor do post tiver uma empresa associada
         let isFollowingCompany = false;
         const postCompanyId = (post as any).companyId;
-        if (userId && mongoose.Types.ObjectId.isValid(userId) && postCompanyId && mongoose.Types.ObjectId.isValid(postCompanyId)) {
+        if (
+          userId &&
+          mongoose.Types.ObjectId.isValid(userId) &&
+          postCompanyId &&
+          mongoose.Types.ObjectId.isValid(postCompanyId)
+        ) {
           try {
             const companyConnection = await Connection.findOne({
               followerId: new mongoose.Types.ObjectId(userId),
@@ -81,12 +95,25 @@ export async function GET(request: NextRequest) {
             // Ignorar erros de query
           }
         }
-        
+
         // Também verificar se o autor do post tem uma empresa e se o usuário está seguindo essa empresa
-        if (userId && mongoose.Types.ObjectId.isValid(userId) && !isFollowingCompany && post.authorId._id) {
+        if (
+          userId &&
+          mongoose.Types.ObjectId.isValid(userId) &&
+          !isFollowingCompany &&
+          post.authorId._id
+        ) {
           try {
-            const authorUser = (await User.findById(post.authorId._id).select("companyId").lean()) as unknown as Partial<{ _id: mongoose.Types.ObjectId; companyId?: mongoose.Types.ObjectId }> | null;
-            if (authorUser?.companyId && mongoose.Types.ObjectId.isValid(authorUser.companyId)) {
+            const authorUser = (await User.findById(post.authorId._id)
+              .select("companyId")
+              .lean()) as unknown as Partial<{
+              _id: mongoose.Types.ObjectId;
+              companyId?: mongoose.Types.ObjectId;
+            }> | null;
+            if (
+              authorUser?.companyId &&
+              mongoose.Types.ObjectId.isValid(authorUser.companyId)
+            ) {
               const authorCompanyConnection = await Connection.findOne({
                 followerId: new mongoose.Types.ObjectId(userId),
                 followingId: new mongoose.Types.ObjectId(authorUser.companyId),
@@ -114,7 +141,10 @@ export async function GET(request: NextRequest) {
         const reactionsWithData = [];
         if (post.reactions && Array.isArray(post.reactions)) {
           for (const reaction of post.reactions) {
-            if (reactionsCount[reaction.type as keyof typeof reactionsCount] !== undefined) {
+            if (
+              reactionsCount[reaction.type as keyof typeof reactionsCount] !==
+              undefined
+            ) {
               reactionsCount[reaction.type as keyof typeof reactionsCount]++;
             }
 
@@ -125,14 +155,34 @@ export async function GET(request: NextRequest) {
 
               // Buscar dados do usuário ou empresa
               if (reaction.userId) {
-                const user = (await User.findById(reaction.userId).select("name email").lean()) as unknown as Partial<{ _id: mongoose.Types.ObjectId; name?: string; email?: string }> | null;
-                const userProfile = (await Profile.findOne({ userId: reaction.userId })
+                const user = (await User.findById(reaction.userId)
+                  .select("name email")
+                  .lean()) as unknown as Partial<{
+                  _id: mongoose.Types.ObjectId;
+                  name?: string;
+                  email?: string;
+                }> | null;
+                const userProfile = (await Profile.findOne({
+                  userId: reaction.userId,
+                })
                   .select("firstName lastName photoUrl slug followersCount")
-                  .lean()) as unknown as Partial<Pick<IProfile, "firstName" | "lastName" | "photoUrl" | "slug">> & { followersCount?: number } | null;
+                  .lean()) as unknown as
+                  | (Partial<
+                      Pick<
+                        IProfile,
+                        "firstName" | "lastName" | "photoUrl" | "slug"
+                      >
+                    > & { followersCount?: number })
+                  | null;
 
                 // Verificar se o usuário atual segue quem reagiu
                 let isFollowing = false;
-                if (userId && mongoose.Types.ObjectId.isValid(userId) && reaction.userId && mongoose.Types.ObjectId.isValid(reaction.userId)) {
+                if (
+                  userId &&
+                  mongoose.Types.ObjectId.isValid(userId) &&
+                  reaction.userId &&
+                  mongoose.Types.ObjectId.isValid(reaction.userId)
+                ) {
                   try {
                     const connection = await Connection.findOne({
                       followerId: new mongoose.Types.ObjectId(userId),
@@ -166,15 +216,26 @@ export async function GET(request: NextRequest) {
               } else if (reaction.companyId) {
                 const company = (await Company.findById(reaction.companyId)
                   .select("name logoUrl followersCount")
-                  .lean()) as unknown as Partial<Pick<ICompany, "name" | "logoUrl" | "followersCount">> & { _id?: mongoose.Types.ObjectId } | null;
+                  .lean()) as unknown as
+                  | (Partial<
+                      Pick<ICompany, "name" | "logoUrl" | "followersCount">
+                    > & { _id?: mongoose.Types.ObjectId })
+                  | null;
 
                 // Verificar se o usuário atual segue a empresa que reagiu
                 let isFollowing = false;
-                if (userId && mongoose.Types.ObjectId.isValid(userId) && reaction.companyId && mongoose.Types.ObjectId.isValid(reaction.companyId)) {
+                if (
+                  userId &&
+                  mongoose.Types.ObjectId.isValid(userId) &&
+                  reaction.companyId &&
+                  mongoose.Types.ObjectId.isValid(reaction.companyId)
+                ) {
                   try {
                     const connection = await Connection.findOne({
                       followerId: new mongoose.Types.ObjectId(userId),
-                      followingId: new mongoose.Types.ObjectId(reaction.companyId),
+                      followingId: new mongoose.Types.ObjectId(
+                        reaction.companyId
+                      ),
                       type: "company",
                       status: "accepted",
                     }).lean();
@@ -201,7 +262,9 @@ export async function GET(request: NextRequest) {
           }
 
           // Ordenar reações por relevância (followersCount) - maior primeiro
-          reactionsWithData.sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0));
+          reactionsWithData.sort(
+            (a, b) => (b.followersCount || 0) - (a.followersCount || 0)
+          );
         }
 
         // Encontrar reação do usuário atual (pode ser como usuário ou empresa)
@@ -209,16 +272,21 @@ export async function GET(request: NextRequest) {
         if (userId && post.reactions) {
           const accountType = (session?.user as any)?.accountType || "user";
           const companyId = session?.user?.companyId;
-          const isCompanyAccount = accountType === "company" && companyId === userId;
+          const isCompanyAccount =
+            accountType === "company" && companyId === userId;
 
           if (isCompanyAccount) {
-            currentReaction = post.reactions.find(
-              (r: any) => r.companyId && r.companyId.toString() === userId.toString()
-            )?.type || null;
+            currentReaction =
+              post.reactions.find(
+                (r: any) =>
+                  r.companyId && r.companyId.toString() === userId.toString()
+              )?.type || null;
           } else {
-            currentReaction = post.reactions.find(
-              (r: any) => r.userId && r.userId.toString() === userId.toString()
-            )?.type || null;
+            currentReaction =
+              post.reactions.find(
+                (r: any) =>
+                  r.userId && r.userId.toString() === userId.toString()
+              )?.type || null;
           }
         }
 
@@ -228,18 +296,24 @@ export async function GET(request: NextRequest) {
         // 2. O usuário não é o autor do post
         // 3. Usuário está logado
         // Nota: Não depende de reações de quem o usuário segue - qualquer post de quem não segue é sugestão
-        const isPostAuthor = userId && post.authorId._id.toString() === userId.toString();
-        const isSuggestion = userId && 
-          !isFollowingAuthor && 
-          !isFollowingCompany &&
-          !isPostAuthor;
+        const isPostAuthor =
+          userId && post.authorId._id.toString() === userId.toString();
+        const isSuggestion =
+          userId && !isFollowingAuthor && !isFollowingCompany && !isPostAuthor;
 
         // Manter compatibilidade com likes antigos
         const likes = post.likes || [];
-        const isLiked = userId ? likes.some((likeId: mongoose.Types.ObjectId) => likeId.toString() === userId.toString()) : false;
+        const isLiked = userId
+          ? likes.some(
+              (likeId: mongoose.Types.ObjectId) =>
+                likeId.toString() === userId.toString()
+            )
+          : false;
 
         // Contar comentários reais do banco
-        const commentsCount = await Comment.countDocuments({ postId: post._id });
+        const commentsCount = await Comment.countDocuments({
+          postId: post._id,
+        });
 
         // Usar sharesCount do post ou 0 se não existir
         const sharesCount = post.sharesCount || 0;
@@ -273,7 +347,9 @@ export async function GET(request: NextRequest) {
 
     // Se usuário está logado, adicionar vagas recomendadas
     const userProfile = session
-      ? (await Profile.findOne({ userId: session.user.id }).lean()) as unknown as Partial<IProfile> | null
+      ? ((await Profile.findOne({
+          userId: session.user.id,
+        }).lean()) as unknown as Partial<IProfile> | null)
       : null;
 
     const vacanciesRaw = (await Vacancy.find({ status: "published" })
@@ -288,7 +364,7 @@ export async function GET(request: NextRequest) {
         : null;
 
       return {
-        _id: vacancy._id,
+        _id: String(vacancy._id),
         type: "job",
         title: vacancy.title,
         description: vacancy.description,
@@ -389,7 +465,9 @@ export async function POST(request: NextRequest) {
         mediaType = "image";
       }
       // Remover duplicatas e valores nulos
-      mediaUrls = mediaUrls.filter((url: string) => url && url.trim().length > 0);
+      mediaUrls = mediaUrls.filter(
+        (url: string) => url && url.trim().length > 0
+      );
     }
 
     // Limpar mediaUrls se estiver vazio ou não definido
@@ -502,7 +580,12 @@ export async function POST(request: NextRequest) {
       userId: populatedPost.authorId._id,
     })
       .select("firstName lastName photoUrl headline slug")
-      .lean()) as unknown as Partial<Pick<IProfile, "firstName" | "lastName" | "photoUrl" | "headline" | "slug">> | null;
+      .lean()) as unknown as Partial<
+      Pick<
+        IProfile,
+        "firstName" | "lastName" | "photoUrl" | "headline" | "slug"
+      >
+    > | null;
 
     const postWithProfile = {
       ...populatedPost.toObject(),
