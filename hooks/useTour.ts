@@ -34,10 +34,7 @@ export const useTour = () => {
             // Pequeno delay para permitir que a ação do clique (ex: abrir menu) ocorra
             setTimeout(() => {
               // Verificar se o driver ainda está ativo e válido
-              if (
-                driverObj.current &&
-                driverObj.current.isActiveStep(step.popover?.title || "")
-              ) {
+              if (driverObj.current && driverObj.current.isActive()) {
                 if (driverObj.current.hasNextStep()) {
                   driverObj.current.moveNext();
                 } else {

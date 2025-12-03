@@ -10,8 +10,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Diamond, HelpCircle, Globe, LogOut, Settings } from "lucide-react";
-import { cn } from "@/lib/utils";
+
 
 interface Profile {
   firstName: string;
