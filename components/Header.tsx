@@ -96,10 +96,14 @@ export default function Header({ sticky = true }: HeaderProps) {
       <div className="hidden md:flex max-w-7xl mx-auto px-4 items-center justify-between h-14 relative">
         {/* LEFT: Logo + Search */}
         <div className="flex items-center gap-3">
-          <Link href="/feed" className="flex items-center justify-center">
+          <Link
+            href="/feed"
+            className="flex items-center justify-center"
+            id="header-logo"
+          >
             <LogoIcon size="default" color="black" strokeWidth={300} />
           </Link>
-          <div className="w-64">
+          <div className="w-64" id="header-search">
             <ButtonGroupInput />
           </div>
         </div>
@@ -119,6 +123,7 @@ export default function Header({ sticky = true }: HeaderProps) {
                 >
                   <Link
                     href={item.href}
+                    id={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
                     className={cn(
                       "relative flex flex-col items-center justify-center gap-1 text-xs font-medium transition group whitespace-nowrap px-2 py-1.5 rounded",
                       isActive ? "text-black" : "text-black/80 hover:text-black"
@@ -161,6 +166,7 @@ export default function Header({ sticky = true }: HeaderProps) {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
+                    id="header-profile-menu"
                     className={cn(
                       "relative flex flex-col items-center justify-center gap-1 text-xs font-medium transition group whitespace-nowrap px-2 py-1.5 rounded",
                       pathname?.startsWith("/jobboard") ||
@@ -241,6 +247,7 @@ export default function Header({ sticky = true }: HeaderProps) {
             <li className="relative ml-3">
               <Link
                 href="/jobs/create"
+                id="header-post-job"
                 className={cn(
                   "relative flex flex-col items-center justify-center gap-1 text-xs font-medium transition group whitespace-nowrap px-2 py-1.5 rounded",
                   pathname === "/jobs/create"

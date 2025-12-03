@@ -281,7 +281,9 @@ export default function MainFeed() {
   return (
     <div className="space-y-4">
       {/* Create Post Modal */}
-      <CreatePostBox onPostCreated={handlePostCreated} />
+      <div id="create-post-box">
+        <CreatePostBox onPostCreated={handlePostCreated} />
+      </div>
       {/* Linha divisória + filtro */}
       <div className="border-t mt-3 pt-1 flex justify-end text-xs text-black">
         <span>
@@ -298,7 +300,7 @@ export default function MainFeed() {
           ))}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4" id="feed-posts">
           {posts.map((item) => {
             // Se for uma vaga, renderizar JobCard
             if (item.type === "job") {

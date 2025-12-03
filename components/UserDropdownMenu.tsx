@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -27,6 +27,7 @@ interface UserDropdownMenuProps {
 
 export default function UserDropdownMenu({ profile }: UserDropdownMenuProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { data: session } = useSession();
 
   const handleViewProfile = () => {
@@ -61,6 +62,16 @@ export default function UserDropdownMenu({ profile }: UserDropdownMenuProps) {
 
   const handleSignOut = () => {
     signOut();
+  };
+
+  const handleTutorial = () => {
+    if (pathname?.startsWith("/feed")) {
+      window.dispatchEvent(new CustomEvent("startMainTour"));
+    } else if (pathname?.startsWith("/jobboard")) {
+      window.dispatchEvent(new CustomEvent("startProfileTour"));
+    } else if (pathname?.startsWith("/admin")) {
+      window.dispatchEvent(new CustomEvent("startAdminTour"));
+    }
   };
 
   const fullName = profile
@@ -138,6 +149,12 @@ export default function UserDropdownMenu({ profile }: UserDropdownMenuProps) {
         </DropdownMenuItem>
         <DropdownMenuItem
           className="px-4 cursor-pointer hover:underline"
+          onClick={handleTutorial}
+        >
+          <span className="text-sm text-black">Tutorial da Página</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className="px-4 cursor-pointer hover:underline"
           onClick={handleLanguage}
         >
           <span className="text-sm text-black">Idioma</span>
@@ -186,7 +203,8 @@ export default function UserDropdownMenu({ profile }: UserDropdownMenuProps) {
         <DropdownMenuSeparator />
 
         {/* Admin Options */}
-        {(session?.user?.role === "admin" || (session?.user as any)?.dashboardAccess) && (
+        {(session?.user?.role === "admin" ||
+          (session?.user as any)?.dashboardAccess) && (
           <div className="py-2">
             <div className="px-4 py-2">
               <h4 className="text-xs font-semibold text-black uppercase tracking-wide">

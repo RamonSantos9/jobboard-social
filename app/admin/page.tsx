@@ -20,6 +20,8 @@ import { AdminDashboardSkeleton } from "@/components/dashboard/admin-skeleton";
 
 import { ChartPieLabelCustom } from "@/components/dashboard/graphics/chart-pie-label-custom";
 import { ChartLineLabel } from "@/components/dashboard/graphics/chart-line-label";
+import { useTour } from "@/hooks/useTour";
+import { DriveStep } from "driver.js";
 
 function AdminContent() {
   const { state } = useSidebar();
@@ -141,6 +143,58 @@ function AdminContent() {
     fetchData();
   }, []);
 
+  const { startTour } = useTour();
+
+  const adminTourSteps: DriveStep[] = [
+    {
+      element: "#admin-overview",
+      popover: {
+        title: "Visão Geral",
+        description:
+          "Acompanhe as principais métricas do sistema em tempo real.",
+        side: "bottom",
+      },
+    },
+    {
+      element: "#admin-charts",
+      popover: {
+        title: "Análises Gráficas",
+        description: "Visualize tendências e distribuição de dados.",
+        side: "top",
+      },
+    },
+    {
+      element: "#admin-data-table",
+      popover: {
+        title: "Gerenciamento de Dados",
+        description: "Gerencie usuários, empresas, vagas e candidaturas.",
+        side: "top",
+      },
+    },
+  ];
+
+  useEffect(() => {
+    if (!loading && !error && stats) {
+      const hasSeenAdminTour = localStorage.getItem("hasSeenAdminTour");
+      if (!hasSeenAdminTour) {
+        setTimeout(() => {
+          startTour(adminTourSteps);
+          localStorage.setItem("hasSeenAdminTour", "true");
+        }, 1000);
+      }
+
+      // Listener para iniciar manualmente
+      const handleStartTour = () => {
+        startTour(adminTourSteps);
+      };
+
+      window.addEventListener("startAdminTour", handleStartTour);
+      return () => {
+        window.removeEventListener("startAdminTour", handleStartTour);
+      };
+    }
+  }, [loading, error, stats]);
+
   if (loading) {
     return (
       <SidebarProvider
@@ -187,27 +241,34 @@ function AdminContent() {
             <div className="@container/main flex flex-1 flex-col gap-2">
               <div className="flex flex-col gap-4  md:gap-6">
                 <div className="flex flex-col gap-4 md:gap-6 mt-4">
-                  <SectionCards overview={stats?.overview} />
-                  <div className="px-4 lg:px-6 grid gap-4 md:grid-cols-2">
+                  <div id="admin-overview">
+                    <SectionCards overview={stats?.overview} />
+                  </div>
+                  <div
+                    id="admin-charts"
+                    className="px-4 lg:px-6 grid gap-4 md:grid-cols-2"
+                  >
                     <ChartPieLabelCustom />
                     <ChartLineLabel />
                   </div>
                   <div className="px-4 lg:px-6">
                     <ChartAreaInteractive />
                   </div>
-                  <DataTable
-                    data={activities}
-                    activitiesLast24h={activitiesLast24h}
-                    mode="admin"
-                    companies={companies}
-                    users={users}
-                    vacancies={vacancies}
-                    applications={applications}
-                    onCompanyUpdate={handleCompanyUpdate}
-                    onUserUpdate={handleUserUpdate}
-                    onVacancyUpdate={handleVacancyUpdate}
-                    onApplicationUpdate={handleApplicationUpdate}
-                  />
+                  <div id="admin-data-table">
+                    <DataTable
+                      data={activities}
+                      activitiesLast24h={activitiesLast24h}
+                      mode="admin"
+                      companies={companies}
+                      users={users}
+                      vacancies={vacancies}
+                      applications={applications}
+                      onCompanyUpdate={handleCompanyUpdate}
+                      onUserUpdate={handleUserUpdate}
+                      onVacancyUpdate={handleVacancyUpdate}
+                      onApplicationUpdate={handleApplicationUpdate}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

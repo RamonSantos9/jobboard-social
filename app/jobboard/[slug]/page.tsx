@@ -27,6 +27,8 @@ import MediaExpansionModal from "@/components/MediaExpansionModal";
 import { LocationCombobox } from "@/components/LocationCombobox";
 import { InstitutionCombobox } from "@/components/InstitutionCombobox";
 import { toast } from "sonner";
+import { useTour } from "@/hooks/useTour";
+import { DriveStep } from "driver.js";
 
 interface PublicProfile {
   _id: string;
@@ -143,6 +145,68 @@ export default function PublicProfilePage() {
   }, []);
 
   const isOwnProfile = profile?.userId?._id === session?.user?.id;
+  const { startTour } = useTour();
+
+  const profileTourSteps: DriveStep[] = [
+    {
+      element: "#profile-banner",
+      popover: {
+        title: "Sua Capa",
+        description:
+          "Adicione uma imagem de capa profissional para personalizar seu perfil.",
+        side: "bottom",
+      },
+    },
+    {
+      element: "#profile-photo",
+      popover: {
+        title: "Sua Foto",
+        description:
+          "Uma boa foto ajuda você a ser reconhecido. Clique para alterar.",
+        side: "right",
+      },
+    },
+    {
+      element: "#profile-edit-btn",
+      popover: {
+        title: "Editar Perfil",
+        description:
+          "Mantenha suas informações atualizadas: cargo, localização e sobre você.",
+        side: "left",
+      },
+    },
+    {
+      element: "#profile-actions",
+      popover: {
+        title: "Ações Rápidas",
+        description:
+          "Adicione seções, demonstre interesse e aprimore seu perfil aqui.",
+        side: "top",
+      },
+    },
+  ];
+
+  useEffect(() => {
+    if (isOwnProfile && !loading && profile) {
+      const hasSeenProfileTour = localStorage.getItem("hasSeenProfileTour");
+      if (!hasSeenProfileTour) {
+        setTimeout(() => {
+          startTour(profileTourSteps);
+          localStorage.setItem("hasSeenProfileTour", "true");
+        }, 1000);
+      }
+
+      // Listener para iniciar manualmente
+      const handleStartTour = () => {
+        startTour(profileTourSteps);
+      };
+
+      window.addEventListener("startProfileTour", handleStartTour);
+      return () => {
+        window.removeEventListener("startProfileTour", handleStartTour);
+      };
+    }
+  }, [isOwnProfile, loading, profile]);
 
   // Função para parsear location existente
   const parseLocation = (locationString: string) => {
@@ -540,6 +604,7 @@ export default function PublicProfilePage() {
             <Card className="overflow-hidden bg-white py-0">
               {/* Banner */}
               <div
+                id="profile-banner"
                 className="relative h-[100px] sm:h-[150px] bg-cover bg-center cursor-pointer group"
                 style={{
                   backgroundImage: profile.bannerUrl
@@ -593,7 +658,10 @@ export default function PublicProfilePage() {
                       }
                     }}
                   >
-                    <Avatar className="w-[100px] h-[100px] sm:w-[152px] sm:h-[152px] border-2 sm:border-4 border-white">
+                    <Avatar
+                      id="profile-photo"
+                      className="w-[100px] h-[100px] sm:w-[152px] sm:h-[152px] border-2 sm:border-4 border-white"
+                    >
                       <AvatarImage
                         src={
                           profile.photoUrl || "/placeholder/userplaceholder.svg"
@@ -615,6 +683,7 @@ export default function PublicProfilePage() {
                         setContactModalOpen(true);
                       }}
                       className="absolute top-16 sm:top-22 right-0 p-1 sm:p-1.5 text-black z-10"
+                      id="profile-edit-btn"
                       title="Editar perfil"
                     >
                       <LinkedInIcon
@@ -741,7 +810,10 @@ export default function PublicProfilePage() {
                 </div>
 
                 {/* 4 Botões de Ação */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-4 sm:py-6">
+                <div
+                  id="profile-actions"
+                  className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-4 sm:py-6"
+                >
                   <Button
                     variant="outline"
                     size="sm"

@@ -6,6 +6,7 @@ import MainFeed from "@/components/MainFeed";
 import RightSidebar from "@/components/RightSidebar";
 import FloatingMessages from "@/components/FloatingMessages";
 import LeftSidebarJobs from "@/app/jobs/components/LeftSidebarJobs";
+import TourGuide from "@/components/TourGuide";
 
 export default function FeedPage() {
   return (
@@ -38,6 +39,7 @@ export default function FeedPage() {
         <div>
           <FloatingMessages />
         </div>
+        <TourGuide />
       </div>
     </AuthGuard>
   );

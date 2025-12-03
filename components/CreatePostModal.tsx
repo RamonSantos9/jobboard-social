@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import { useEffect, useRef, useCallback } from "react";
 import LinkedInIcon from "@/components/LinkedInIcon";
 import ImageEditorModal from "@/components/ImageEditorModal";
+import { useTour } from "@/hooks/useTour";
+import { DriveStep } from "driver.js";
 
 interface CreatePostModalProps {
   onPostCreated?: (post?: any) => void;
@@ -50,6 +52,50 @@ export default function CreatePostModal({
     firstName?: string;
     lastName?: string;
   } | null>(null);
+
+  const { startTour } = useTour();
+
+  const tourSteps: DriveStep[] = [
+    {
+      element: "#create-post-textarea",
+      popover: {
+        title: "Escreva sua publicação",
+        description:
+          "Compartilhe suas ideias aqui. Você pode usar hashtags e mencionar pessoas.",
+        side: "bottom",
+      },
+    },
+    {
+      element: "#create-post-image-btn",
+      popover: {
+        title: "Adicione Imagens",
+        description:
+          "Enriqueça seu post com fotos. Você pode editar as imagens antes de publicar.",
+        side: "bottom",
+      },
+    },
+    {
+      element: "#create-post-submit-btn",
+      popover: {
+        title: "Publicar",
+        description:
+          "Quando estiver pronto, clique aqui para compartilhar com sua rede.",
+        side: "top",
+      },
+    },
+  ];
+
+  useEffect(() => {
+    if (isOpen) {
+      const hasSeenPostTour = localStorage.getItem("hasSeenPostTour");
+      if (!hasSeenPostTour) {
+        setTimeout(() => {
+          startTour(tourSteps);
+          localStorage.setItem("hasSeenPostTour", "true");
+        }, 500);
+      }
+    }
+  }, [isOpen]);
 
   // Usar estado externo se fornecido, caso contrário usar interno
   const modalOpen = open !== undefined ? open : isOpen;
@@ -517,6 +563,7 @@ export default function CreatePostModal({
 
           {/* Content */}
           <Textarea
+            id="create-post-textarea"
             placeholder="O que você gostaria de compartilhar?"
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -610,6 +657,7 @@ export default function CreatePostModal({
               <Button
                 variant="ghost"
                 size="sm"
+                id="create-post-image-btn"
                 onClick={() => handleFileUpload("image")}
                 className="text-black hover:text-blue-600"
               >
@@ -636,6 +684,7 @@ export default function CreatePostModal({
                 Cancelar
               </Button>
               <Button
+                id="create-post-submit-btn"
                 onClick={handleSubmit}
                 disabled={
                   posting ||
